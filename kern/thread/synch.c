@@ -139,7 +139,7 @@ V(struct semaphore *sem)
 // Lock.
 
 struct lock *
-lock_create(const char *name)
+lock_create(const char *name, )
 {
 	struct lock *lock;
 
@@ -154,7 +154,14 @@ lock_create(const char *name)
 		return NULL;
 	}
 
-	// add stuff here as needed
+	lock->lk_wchan = wchan_create(lock->lk_name);
+	if(lock->lk_wchan == NULL){
+		kfree(lock->lk_name);
+		kfree(lock);
+		return NULL;
+	}
+
+	spinlock_init(lock->lk_splock);
 
 	return lock;
 }
