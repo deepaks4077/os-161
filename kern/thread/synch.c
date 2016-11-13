@@ -219,7 +219,7 @@ lock_do_i_hold(struct lock *lock)
 		return true;
 	}
 
-	return (lock->lk_holder == curcpu->c_self);
+	return (lock->lk_holder == curthread->c_self);
 }
 
 ////////////////////////////////////////////////////////////
