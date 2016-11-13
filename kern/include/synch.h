@@ -76,7 +76,7 @@ void V(struct semaphore *);
 struct lock {
         char *lk_name;
         struct wchan *lk_wchan;
-        struct spinlock *lk_splock;
+        struct spinlock lk_splock;
         bool lk_locked;
         struct cpu *lk_holder;
         // add what you need here
