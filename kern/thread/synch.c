@@ -269,7 +269,7 @@ cv_destroy(struct cv *cv)
 	wchan_destroy(cv->cv_wchan);
 
 	kfree(cv->cv_name);
-	spinlock_cleanup(cv->cv_splock);
+	spinlock_cleanup(&cv->cv_splock);
 	kfree(cv);
 }
 
@@ -281,11 +281,11 @@ cv_wait(struct cv *cv, struct lock *lock)
 
 	spinlock_acquire(&cv->cv_splock);
 	lock_release(lock);
-	wchan_sleep(cv->cv_wchan,cv->cv_splock);
+	wchan_sleep(cv->cv_wchan,&cv->cv_splock);
 	lock_acquire(lock);
 
 	KASSERT(lock_do_i_hold(lock));
-	KASSERT(spinlock_do_i_hold(cv->cv_splock) == false);
+	KASSERT(spinlock_do_i_hold(&cv->cv_splock) == false);
 }
 
 void
