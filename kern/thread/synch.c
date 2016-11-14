@@ -172,7 +172,7 @@ void
 lock_destroy(struct lock *lock)
 {
 	KASSERT(lock != NULL);
-	KASSERT(lock->lk_holder != NULL);
+	KASSERT(lock->lk_holder == NULL);
 
 	spinlock_cleanup(&lock->lk_splock);
 	wchan_destroy(lock->lk_wchan);
@@ -187,7 +187,7 @@ lock_acquire(struct lock *lock)
 	KASSERT(curthread->t_in_interrupt == false);
 
 	spinlock_acquire(&lock->lk_splock);
-	if(lock->lk_locked){
+	while(lock->lk_locked){
 		wchan_sleep(lock->lk_wchan,&lock->lk_splock);
 	}
 	
@@ -211,6 +211,8 @@ lock_release(struct lock *lock)
 	lock->lk_holder = NULL;
 	wchan_wakeone(lock->lk_wchan,&lock->lk_splock);
 
+	KASSERT(lock->lk_locked == false);
+	KASSERT(lock->lk_holder == NULL);
 	spinlock_release(&lock->lk_splock);
 }
 
