@@ -40,52 +40,48 @@
 #include <test.h>
 #include <synch.h>
 
-/*
- * Called by the driver during initialization.
- */
+struct semaphore matchmaker_male;
+struct semaphore matchmaker_female;
+struct semaphore male_matchmaker;
+struct semaphore female_matchmaker;
 
-void whalemating_init() {
-	return;
+void whalemating_init(){
+	matchmaker_male = sem_create("matchmaker_male",0);
+	matchmaker_female = sem_create("matchmaker_female",0);
+	male_matchmaker = sem_create("male_matchmaker",0);
+	female_matchmaker = sem_create("female_matchmaker",0);
 }
-
-/*
- * Called by the driver during teardown.
- */
 
 void
 whalemating_cleanup() {
-	return;
+	sem_destroy(matchmaker_male);
+	sem_destroy(matchmaker_female);
+	sem_destroy(male_matchmaker);
+	sem_destroy(female_matchmaker);
 }
 
 void
-male(uint32_t index)
-{
-	(void)index;
-	/*
-	 * Implement this function by calling male_start and male_end when
-	 * appropriate.
-	 */
-	return;
+male(uint32_t index){
+	male_start(index);
+	V(matchmaker_male);
+	P(male_matchmaker);
+	male_end(index);
 }
 
 void
-female(uint32_t index)
-{
-	(void)index;
-	/*
-	 * Implement this function by calling female_start and female_end when
-	 * appropriate.
-	 */
-	return;
+female(uint32_t index){
+	female_start(index);
+	V(matchmaker_female);
+	P(female_matchmaker);
+	female_end(index);
 }
 
 void
-matchmaker(uint32_t index)
-{
-	(void)index;
-	/*
-	 * Implement this function by calling matchmaker_start and matchmaker_end
-	 * when appropriate.
-	 */
-	return;
+matchmaker(uint32_t index){
+	matchmaker_start(index);
+	P(matchmaker_male);
+	P(matchmaker_female);
+	V(male_matchmaker);
+	V(female_matchmaker);
+	matchmaker_end();
 }
