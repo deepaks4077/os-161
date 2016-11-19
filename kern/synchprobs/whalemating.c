@@ -54,34 +54,34 @@ void whalemating_init(){
 
 void
 whalemating_cleanup() {
-	sem_destroy(matchmaker_male);
-	sem_destroy(matchmaker_female);
-	sem_destroy(male_matchmaker);
-	sem_destroy(female_matchmaker);
+	sem_destroy(&matchmaker_male);
+	sem_destroy(&matchmaker_female);
+	sem_destroy(&male_matchmaker);
+	sem_destroy(&female_matchmaker);
 }
 
 void
 male(uint32_t index){
 	male_start(index);
-	V(matchmaker_male);
-	P(male_matchmaker);
+	V(&matchmaker_male);
+	P(&male_matchmaker);
 	male_end(index);
 }
 
 void
 female(uint32_t index){
 	female_start(index);
-	V(matchmaker_female);
-	P(female_matchmaker);
+	V(&matchmaker_female);
+	P(&female_matchmaker);
 	female_end(index);
 }
 
 void
 matchmaker(uint32_t index){
 	matchmaker_start(index);
-	P(matchmaker_male);
-	P(matchmaker_female);
-	V(male_matchmaker);
-	V(female_matchmaker);
-	matchmaker_end();
+	P(&matchmaker_male);
+	P(&matchmaker_female);
+	V(&male_matchmaker);
+	V(&female_matchmaker);
+	matchmaker_end(index);
 }
