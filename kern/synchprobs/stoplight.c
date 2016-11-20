@@ -151,7 +151,7 @@ turnright(uint32_t direction, uint32_t index){
 void
 gostraight(uint32_t direction, uint32_t index){
 	uint32_t opposite_intersection = OPP_QUADRANT(direction);
-	getSem(sem_deadlock);
+	P(sem_deadlock);
 	getSem(direction);
 	inQuadrant(direction,index);
 	getSem(opposite_intersection);
@@ -159,14 +159,14 @@ gostraight(uint32_t direction, uint32_t index){
 	giveSem(direction);
 	leaveIntersection(index);
 	giveSem(opposite_intersection);
-	giveSem(sem_deadlock);
+	V(sem_deadlock);
 }
 
 void
 turnleft(uint32_t direction, uint32_t index){
 	uint32_t opposite_intersection = OPP_QUADRANT(direction);
 	uint32_t diagonal_intersection = DIAG_QUADRANT(direction);
-	getSem(sem_deadlock);
+	P(sem_deadlock);
 	getSem(direction);
 	inQuadrant(direction,index);
 	getSem(opposite_intersection);
@@ -177,5 +177,5 @@ turnleft(uint32_t direction, uint32_t index){
 	giveSem(opposite_intersection);
 	leaveIntersection(index);
 	giveSem(diagonal_intersection);
-	giveSem(sem_deadlock);
+	V(sem_deadlock);
 }
