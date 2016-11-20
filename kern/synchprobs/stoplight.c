@@ -77,7 +77,7 @@ struct semaphore *sem_qdr_one;
 struct semaphore *sem_qdr_two;
 struct semaphore *sem_qdr_three;
 
-void getSem(uint16_t intersection);
+void getSem(uint32_t intersection);
 void giveSem(uint32_t intersection);
 
 void getSem(uint32_t intersection){
