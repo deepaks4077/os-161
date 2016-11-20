@@ -76,6 +76,7 @@ struct semaphore *sem_qdr_zero;
 struct semaphore *sem_qdr_one;
 struct semaphore *sem_qdr_two;
 struct semaphore *sem_qdr_three;
+struct semaphore *sem_deadlock;
 
 void getSem(uint32_t intersection);
 void giveSem(uint32_t intersection);
@@ -124,6 +125,7 @@ stoplight_init() {
 	sem_qdr_one = sem_create("sem_1",1);
 	sem_qdr_two = sem_create("sem_2",1);
 	sem_qdr_three = sem_create("sem_3",1);
+	sem_deadlock = sem_create("sem_deadlock",3);
 }
 
 /*
@@ -135,11 +137,11 @@ void stoplight_cleanup() {
 	sem_destroy(sem_qdr_one);
 	sem_destroy(sem_qdr_two);
 	sem_destroy(sem_qdr_three);
+	sem_destroy(sem_deadlock);
 }
 
 void
-turnright(uint32_t direction, uint32_t index)
-{
+turnright(uint32_t direction, uint32_t index){
 	getSem(direction);
 	inQuadrant(direction,index);
 	leaveIntersection(index);
@@ -149,6 +151,7 @@ turnright(uint32_t direction, uint32_t index)
 void
 gostraight(uint32_t direction, uint32_t index){
 	uint32_t opposite_intersection = OPP_QUADRANT(direction);
+	getSem(sem_deadlock);
 	getSem(direction);
 	inQuadrant(direction,index);
 	getSem(opposite_intersection);
@@ -156,12 +159,14 @@ gostraight(uint32_t direction, uint32_t index){
 	giveSem(direction);
 	leaveIntersection(index);
 	giveSem(opposite_intersection);
+	giveSem(sem_deadlock);
 }
 
 void
 turnleft(uint32_t direction, uint32_t index){
 	uint32_t opposite_intersection = OPP_QUADRANT(direction);
 	uint32_t diagonal_intersection = DIAG_QUADRANT(direction);
+	getSem(sem_deadlock);
 	getSem(direction);
 	inQuadrant(direction,index);
 	getSem(opposite_intersection);
@@ -172,4 +177,5 @@ turnleft(uint32_t direction, uint32_t index){
 	giveSem(opposite_intersection);
 	leaveIntersection(index);
 	giveSem(diagonal_intersection);
+	giveSem(sem_deadlock);
 }
