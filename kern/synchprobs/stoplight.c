@@ -69,13 +69,58 @@
 #include <test.h>
 #include <synch.h>
 
+#define OPP_QUADRANT(qdrant) ((qdrant == 0) ? 3 : qdrant - 1)
+#define DIAG_QUADRANT(qdrant) ((qdrant+2)%4)
+
+struct semaphore *sem_qdr_zero;
+struct semaphore *sem_qdr_one;
+struct semaphore *sem_qdr_two;
+struct semaphore *sem_qdr_three;
+
+void getSem(uint32_t intersection){
+	switch(intersection){
+		case 0:
+			P(sem_qdr_zero);
+			break;
+		case 1:
+			P(sem_qdr_one);
+			break;
+		case 2:
+			P(sem_qdr_two);
+			break;
+		case 3:
+			P(sem_qdr_three);
+			break;
+	}
+}
+
+void giveSem(uint32_t intersection){
+	switch(intersection){
+		case 0:
+			V(sem_qdr_zero);
+			break;
+		case 1:
+			V(sem_qdr_one);
+			break;
+		case 2:
+			V(sem_qdr_two);
+			break;
+		case 3:
+			V(sem_qdr_three);
+			break;
+	}
+}
+
 /*
  * Called by the driver during initialization.
  */
 
 void
 stoplight_init() {
-	return;
+	sem_qdr_zero = sem_create("sem_0",1);
+	sem_qdr_one = sem_create("sem_1",1);
+	sem_qdr_two = sem_create("sem_2",1);
+	sem_qdr_three = sem_create("sem_3",1);
 }
 
 /*
@@ -83,36 +128,45 @@ stoplight_init() {
  */
 
 void stoplight_cleanup() {
-	return;
+	sem_destroy(sem_qdr_zero);
+	sem_destroy(sem_qdr_one);
+	sem_destroy(sem_qdr_two);
+	sem_destroy(sem_qdr_three);
 }
 
 void
 turnright(uint32_t direction, uint32_t index)
 {
-	(void)direction;
-	(void)index;
-	/*
-	 * Implement this function.
-	 */
-	return;
+	getSem(direction);
+	inQuadrant(direction,index);
+	leaveIntersection(index);
+	giveSem(direction);
 }
+
 void
-gostraight(uint32_t direction, uint32_t index)
-{
-	(void)direction;
-	(void)index;
-	/*
-	 * Implement this function.
-	 */
-	return;
+gostraight(uint32_t direction, uint32_t index){
+	uint32_t opposite_intersection = OPP_QUADRANT(direction);
+	getSem(direction);
+	inQuadrant(direction,index);
+	getSem(opposite_intersection);
+	inQuadrant(opposite_intersection);
+	giveSem(direction);
+	leaveIntersection(index);
+	giveSem(opposite_intersection);
 }
+
 void
-turnleft(uint32_t direction, uint32_t index)
-{
-	(void)direction;
-	(void)index;
-	/*
-	 * Implement this function.
-	 */
-	return;
+turnleft(uint32_t direction, uint32_t index){
+	uint32_t opposite_intersection = OPP_QUADRANT(direction);
+	uint32_t diagonal_intersection = DIAG_QUADRANT(direction);
+	getSem(direction);
+	inQuadrant(direction,index);
+	getSem(opposite_intersection);
+	inQuadrant(opposite_intersection);
+	giveSem(direction);
+	getSem(diagonal_intersection);
+	inQuadrant(diagonal_intersection);
+	giveSem(opposite_intersection);
+	leaveIntersection(index);
+	giveSem(diagonal_intersection);
 }
