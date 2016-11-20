@@ -77,6 +77,9 @@ struct semaphore *sem_qdr_one;
 struct semaphore *sem_qdr_two;
 struct semaphore *sem_qdr_three;
 
+void getSem(uint16_t intersection);
+void giveSem(uint32_t intersection);
+
 void getSem(uint32_t intersection){
 	switch(intersection){
 		case 0:
@@ -149,7 +152,7 @@ gostraight(uint32_t direction, uint32_t index){
 	getSem(direction);
 	inQuadrant(direction,index);
 	getSem(opposite_intersection);
-	inQuadrant(opposite_intersection);
+	inQuadrant(opposite_intersection,index);
 	giveSem(direction);
 	leaveIntersection(index);
 	giveSem(opposite_intersection);
@@ -162,10 +165,10 @@ turnleft(uint32_t direction, uint32_t index){
 	getSem(direction);
 	inQuadrant(direction,index);
 	getSem(opposite_intersection);
-	inQuadrant(opposite_intersection);
+	inQuadrant(opposite_intersection,index);
 	giveSem(direction);
 	getSem(diagonal_intersection);
-	inQuadrant(diagonal_intersection);
+	inQuadrant(diagonal_intersection,index);
 	giveSem(opposite_intersection);
 	leaveIntersection(index);
 	giveSem(diagonal_intersection);
