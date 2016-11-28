@@ -112,5 +112,7 @@ struct addrspace *proc_getas(void);
 /* Change the address space of the current process, and return the old one. */
 struct addrspace *proc_setas(struct addrspace *);
 
+pid_t proc_assignpid(struct proc *);
+
 
 #endif /* _PROC_H_ */
