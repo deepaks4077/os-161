@@ -44,6 +44,8 @@
 
 #include <types.h>
 #include <spl.h>
+#include <array.h>
+#include <string.h>
 #include <proc.h>
 #include <current.h>
 #include <addrspace.h>
@@ -55,21 +57,49 @@
 struct proc *kproc;
 
 /*
+ * The master array of all processes
+ */
+ DEFARRAY(proc,static __UNUSED inline);
+ DECLARRAY(proc,static __UNUSED inline);
+ static struct procarray allprocs;
+ volatile static unsigned numprocs;
+ volatile static unsigned next_pid;
+
+/* spinlocks used to protect numprocs and allprocs */
+ static spinlock sp_numprocs;
+ static spinlock sp_allprocs; // protect allprocs and next_pid
+
+/*
  * Create a proc structure.
  */
 static
 struct proc *
 proc_create(const char *name)
 {
+	spinlock_acquire(&sp_numprocs);
+	if(numprocs >= MAX_PIDS){
+		spinlock_release(&sp_numprocs);
+		return NULL;
+	}else{
+		numprocs++;
+	}
+	spinlock_release(&sp_numprocs);
+
 	struct proc *proc;
 
 	proc = kmalloc(sizeof(*proc));
 	if (proc == NULL) {
+		spinlock_acquire(&sp_numprocs);
+		numprocs--;
+		spinlock_release(&sp_numprocs);
 		return NULL;
 	}
 	proc->p_name = kstrdup(name);
 	if (proc->p_name == NULL) {
 		kfree(proc);
+		spinlock_acquire(&sp_numprocs);
+		numprocs--;
+		spinlock_release(&sp_numprocs);
 		return NULL;
 	}
 
@@ -81,6 +111,25 @@ proc_create(const char *name)
 
 	/* VFS fields */
 	proc->p_cwd = NULL;
+
+	/* The kernel process has a pid of 0 and add it to allprocs array */
+	if(strcmp(name,KERNELPROC) == 0){
+		KASSERT(numprocs == 0);
+		proc->p_pid = KERNEL_PID;
+		procarray_set(&allprocs,KERNEL_PID,proc); // does not need to be protected since no other process exists yet?
+		KASSERT(proc->p_pid = KERNEL_PID);
+	}else{
+	/* Otherwise, assign the pid from the available pids */
+		spinlock_acquire(&sp_allprocs);
+
+		pid_t newpid = proc_assignpid(proc);
+		proc->p_pid = newpid;
+		procarray_set(&allprocs,newpid,proc);
+		KASSERT(procarray_get(&allprocs,newpid) == proc);
+		
+		spinlock_release(&sp_allprocs);
+	}
+
 
 	return proc;
 }
@@ -168,20 +217,41 @@ proc_destroy(struct proc *proc)
 	KASSERT(proc->p_numthreads == 0);
 	spinlock_cleanup(&proc->p_lock);
 
+	//TODO: decrement the number of processes and remove from allprocs
+	spinlock_acquire(&sp_allprocs);
+	procarray_remove(&allprocs,proc->p_pid);
+	spinlock_acquire(&sp_allprocs);
+
+	spinlock_acquire(&sp_numprocs);
+	numprocs--;
+	spinlock_release(&sp_numprocs);
+
 	kfree(proc->p_name);
 	kfree(proc);
 }
 
 /*
- * Create the process structure for the kernel.
+ * Create the process structure for the kernel. Initialize the master process array, allprocs
  */
 void
 proc_bootstrap(void)
 {
-	kproc = proc_create("[kernel]");
+	KASSERT(allprocs == NULL);
+
+	kproc = proc_create(KERNELPROC);
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
+
+	procarray_init(&allprocs);
+	if(allprocs == NULL){
+		panic("Failed to initialize the main processes array\n");
+	}
+
+	spinlock_init(&sp_numprocs);
+	spinlock_init(&sp_allprocs);
+	numprocs = 0;
+	next_pid = 0;
 }
 
 /*
@@ -317,4 +387,40 @@ proc_setas(struct addrspace *newas)
 	proc->p_addrspace = newas;
 	spinlock_release(&proc->p_lock);
 	return oldas;
+}
+
+/*
+ * Assign an available pid to the process passed as argument
+ * Since the pid assigned is incremented for the next process,
+ * it is possible that we may reach the end of the pid_t type.
+ * In such a case, reset to 0 and assign the smallest unassigned number.
+ */
+pid_t // TODO: test this function
+proc_assignpid(struct proc *newproc){
+	// use the value of next_pid, if overflow then set to 0 for the next process.
+	KASSERT(newproc != NULL);
+	
+	// make sure that the number of processes is less than MAX_PID 
+	KASSERT(numprocs < MAX_PID);
+
+	pid_t ret = 0;
+
+	if(next_pid >= MAX_PID){
+		next_pid = 0;
+	}
+
+	while(next_pid < MAX_PID){
+		if(procarray_get(&allprocs,next_pid) == null){
+			ret = next_pid;
+			next_pid++;
+		}else{
+			if(next_pid == MAX_PID - 1){
+				next_pid = 1; // not setting to 0 since it is reserved for KERNELPROC
+			}else{
+				next_pid++;
+			}
+		}
+	}
+
+	return ret;
 }

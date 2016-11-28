@@ -30,6 +30,15 @@
 #ifndef _PROC_H_
 #define _PROC_H_
 
+/* The name of the kernel process */
+#define KERNELPROC "[kernel]"
+
+/* The PID of the kernel process */
+#define KERNEL_PID 0
+
+/* MAX PID value */
+#define MAX_PIDS 512
+
 /*
  * Definition of a process.
  *
@@ -71,6 +80,12 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
+	
+	/*  The process pid, pid_t is of type _i32,
+		please check out proc.c for information on how 
+		this id is assigned and recycled.
+	 */
+	pid_t p_pid;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
