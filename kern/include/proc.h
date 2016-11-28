@@ -37,7 +37,7 @@
 #define KERNEL_PID 0
 
 /* MAX PID value */
-#define MAX_PIDS 512
+#define MAX_PID 512
 
 /*
  * Definition of a process.

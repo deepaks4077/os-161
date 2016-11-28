@@ -1,5 +1,6 @@
 #include <syscall.h>
 #include <thread.h>
+#include <proc.h>
 
 /*
  * get process id of the current process

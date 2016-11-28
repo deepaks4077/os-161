@@ -45,7 +45,7 @@
 #include <types.h>
 #include <spl.h>
 #include <array.h>
-#include <string.h>
+#include <lib.h>
 #include <proc.h>
 #include <current.h>
 #include <addrspace.h>
@@ -59,15 +59,15 @@ struct proc *kproc;
 /*
  * The master array of all processes
  */
- DEFARRAY(proc,static __UNUSED inline);
  DECLARRAY(proc,static __UNUSED inline);
+ DEFARRAY(proc,static __UNUSED inline);
  static struct procarray allprocs;
- volatile static unsigned numprocs;
- volatile static unsigned next_pid;
+ static volatile unsigned numprocs;
+ static volatile unsigned next_pid;
 
 /* spinlocks used to protect numprocs and allprocs */
- static spinlock sp_numprocs;
- static spinlock sp_allprocs; // protect allprocs and next_pid
+ static struct spinlock sp_numprocs;
+ static struct spinlock sp_allprocs; // protect allprocs and next_pid
 
 /*
  * Create a proc structure.
@@ -77,7 +77,7 @@ struct proc *
 proc_create(const char *name)
 {
 	spinlock_acquire(&sp_numprocs);
-	if(numprocs >= MAX_PIDS){
+	if(numprocs >= MAX_PID){
 		spinlock_release(&sp_numprocs);
 		return NULL;
 	}else{
@@ -94,6 +94,7 @@ proc_create(const char *name)
 		spinlock_release(&sp_numprocs);
 		return NULL;
 	}
+
 	proc->p_name = kstrdup(name);
 	if (proc->p_name == NULL) {
 		kfree(proc);
@@ -244,7 +245,7 @@ proc_bootstrap(void)
 	}
 
 	procarray_init(&allprocs);
-	if(allprocs == NULL){
+	if(&allprocs == NULL){
 		panic("Failed to initialize the main processes array\n");
 	}
 
@@ -410,7 +411,7 @@ proc_assignpid(struct proc *newproc){
 	}
 
 	while(next_pid < MAX_PID){
-		if(procarray_get(&allprocs,next_pid) == null){
+		if(procarray_get(&allprocs,next_pid) == NULL){
 			ret = next_pid;
 			next_pid++;
 		}else{
