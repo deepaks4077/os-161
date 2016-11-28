@@ -237,18 +237,12 @@ proc_destroy(struct proc *proc)
 void
 proc_bootstrap(void)
 {
-	KASSERT(allprocs == NULL);
-
 	kproc = proc_create(KERNELPROC);
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
 
 	procarray_init(&allprocs);
-	if(&allprocs == NULL){
-		panic("Failed to initialize the main processes array\n");
-	}
-
 	spinlock_init(&sp_numprocs);
 	spinlock_init(&sp_allprocs);
 	numprocs = 0;
