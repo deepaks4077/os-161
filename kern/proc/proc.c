@@ -115,10 +115,10 @@ proc_create(const char *name)
 
 	/* The kernel process has a pid of 0 and add it to allprocs array */
 	if(strcmp(name,KERNELPROC) == 0){
-		KASSERT(numprocs == 0);
+		KASSERT(numprocs == 1);
 		proc->p_pid = KERNEL_PID;
-		procarray_set(&allprocs,KERNEL_PID,proc); // does not need to be protected since no other process exists yet?
-		KASSERT(proc->p_pid = KERNEL_PID);
+		procarray_add(&allprocs,proc,(unsigned int *)&proc->p_pid); // does not need to be protected since no other process exists yet?
+		KASSERT(proc->p_pid == KERNEL_PID);
 	}else{
 	/* Otherwise, assign the pid from the available pids */
 		spinlock_acquire(&sp_allprocs);
@@ -245,8 +245,8 @@ proc_bootstrap(void)
 	procarray_init(&allprocs);
 	spinlock_init(&sp_numprocs);
 	spinlock_init(&sp_allprocs);
-	numprocs = 0;
-	next_pid = 0;
+	numprocs = 1;
+	next_pid = 1;
 }
 
 /*

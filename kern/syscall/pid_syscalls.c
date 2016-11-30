@@ -1,5 +1,6 @@
 #include <types.h>
 #include <kern/errno.h>
+#include <syscall.h>
 #include <lib.h>
 #include <thread.h>
 #include <proc.h>
@@ -10,10 +11,9 @@
  */
 
 /* TODO: return error code after looking at with errno.h */
-pid_t
-sys_getpid(uint32_t t_addr){
+pid_t sys_getpid(uint32_t t_addr){
     struct thread *curthread;
-    curthread = t_addr;
-    struct proc *curproc = curthread->t_proc;
-    return curproc->p_pid;
+    curthread = (struct thread *)t_addr;
+    struct proc *cur_proc = curthread->t_proc;
+    return cur_proc->p_pid;
 }
