@@ -385,6 +385,11 @@ file      syscall/loadelf.c
 file      syscall/runprogram.c
 file      syscall/time_syscalls.c
 
+
+# Custom system calls for ASST2
+defoption syscalls
+optfile   syscalls	syscall/process_syscalls.c
+
 #
 # Startup and initialization
 #

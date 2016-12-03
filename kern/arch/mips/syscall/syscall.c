@@ -85,6 +85,7 @@ syscall(struct trapframe *tf)
 	KASSERT(curthread != NULL);
 	KASSERT(curthread->t_curspl == 0);
 	KASSERT(curthread->t_iplhigh_count == 0);
+	KASSERT(curproc != NULL);
 
 	callno = tf->tf_v0;
 
@@ -110,7 +111,7 @@ syscall(struct trapframe *tf)
 		break;
 
 	    case SYS_getpid:
-		retval = sys_getpid(tf->tf_s7);
+		retval = sys_getpid(curproc);
 		err = 0;
 		break;
 

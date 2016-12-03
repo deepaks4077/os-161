@@ -11,9 +11,6 @@
  */
 
 /* TODO: return error code after looking at with errno.h */
-pid_t sys_getpid(uint32_t t_addr){
-    struct thread *curthread;
-    curthread = (struct thread *)t_addr;
-    struct proc *cur_proc = curthread->t_proc;
-    return cur_proc->p_pid;
+pid_t sys_getpid(struct proc *curprocess){
+    return curprocess->p_pid;
 }

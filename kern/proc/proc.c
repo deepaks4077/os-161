@@ -243,6 +243,7 @@ proc_bootstrap(void)
 	}
 
 	procarray_init(&allprocs);
+	procarray_setsize(&allprocs,MAX_PID);
 	spinlock_init(&sp_numprocs);
 	spinlock_init(&sp_allprocs);
 	numprocs = 1;
@@ -408,6 +409,7 @@ proc_assignpid(struct proc *newproc){
 		if(procarray_get(&allprocs,next_pid) == NULL){
 			ret = next_pid;
 			next_pid++;
+			break;
 		}else{
 			if(next_pid == MAX_PID - 1){
 				next_pid = 1; // not setting to 0 since it is reserved for KERNELPROC
