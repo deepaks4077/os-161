@@ -113,6 +113,9 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
+	/* parent process is NULL by default. Assign the parent inside fork */
+	proc->p_parent = NULL;
+	
 	/* The kernel process has a pid of 0 and add it to allprocs array */
 	if(strcmp(name,KERNELPROC) == 0){
 		KASSERT(numprocs == 1);
@@ -420,4 +423,20 @@ proc_assignpid(struct proc *newproc){
 	}
 
 	return ret;
+}
+
+/*
+ * Return the process with process id ppid
+ */
+struct proc*
+get_process(pid_t ppid){
+	if(ppid < 0){
+		return NULL;
+	}
+
+	if(ppid >= MAX_PID){
+		return NULL;
+	}
+
+	return procarray_get(&allproc,ppid);
 }

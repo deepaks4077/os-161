@@ -86,6 +86,14 @@ struct proc {
 		this id is assigned and recycled.
 	 */
 	pid_t p_pid;
+
+	struct proc *p_parent; /* The parent process, could be NULL */
+
+	// TODO: Add the following later:
+	//struct cv *p_cvWait; /* Condition variable to satisfy _exit<->waitpid condition */
+	//struct lock *p_lockWait /* Lock associated with above CV */
+
+	//volatile int p_num_waiting_procs /* Count of processes waiting on this process to exit */
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
@@ -112,7 +120,14 @@ struct addrspace *proc_getas(void);
 /* Change the address space of the current process, and return the old one. */
 struct addrspace *proc_setas(struct addrspace *);
 
+/* Assign pids to new processes
+ * Assuming that the number of processes will not exceed MAX_PID 
+ */
 pid_t proc_assignpid(struct proc *);
 
+/* Get the process with pid ppid 
+ * Return an erro if no such pid exists
+ */
+struct proc* get_process(pid_t);
 
 #endif /* _PROC_H_ */
