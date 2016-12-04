@@ -438,5 +438,5 @@ get_process(pid_t ppid){
 		return NULL;
 	}
 
-	return procarray_get(&allproc,ppid);
+	return procarray_get(&allprocs,ppid);
 }

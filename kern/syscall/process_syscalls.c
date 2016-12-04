@@ -16,14 +16,14 @@ pid_t sys_getpid(struct proc *curprocess){
     return curprocess->p_pid;
 }
 
-void sys_exit(int exitcode){
+void sys_exit(){
     // call thread_exit 
     // wait for number of processes waiting to be 0 before calling proc_destroy and pass the exitcode
 
     // get a reference to the current proc before destroying curthread
     struct proc *current_proc = curproc;
-    thread_destroy(curthread);
-    proc_destroy(current_proc);
+    thread_exit();
+    proc_destroy(current_proc); 
 }
 
 /*
