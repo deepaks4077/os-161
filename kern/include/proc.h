@@ -46,6 +46,8 @@
  */
 
 #include <spinlock.h>
+#include <array.h>
+#include <smpfs.h>
 
 struct addrspace;
 struct thread;
@@ -94,6 +96,12 @@ struct proc {
 	//struct lock *p_lockWait /* Lock associated with above CV */
 
 	//volatile int p_num_waiting_procs /* Count of processes waiting on this process to exit */
+
+	/* File system related data */
+
+	// open files
+	// list of file descriptors
+	struct fharray p_fhs;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

@@ -46,10 +46,13 @@
 #include <spl.h>
 #include <array.h>
 #include <lib.h>
+#include <smpfs.h>
 #include <proc.h>
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <vfs.h>
+#include <kern/unistd.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
@@ -115,7 +118,28 @@ proc_create(const char *name)
 
 	/* parent process is NULL by default. Assign the parent inside fork */
 	proc->p_parent = NULL;
+
+	/* bootstrap the console file handles */
+	int ret = _fh_bootstrap(proc);
+	if(ret != 0){
+		kfree(proc);
+		spinlock_acquire(&sp_numprocs);
+		numprocs--;
+		spinlock_release(&sp_numprocs);
+		return NULL;
+	}
 	
+	if(fharray_get(proc->p_fhs,0) == NULL || 
+	   fharray_get(proc->p_fhs,1) == NULL || 
+	   fharray_get(proc->p_fhs,2) == NULL ){
+		
+		kfree(proc);
+		spinlock_acquire(&sp_numprocs);
+		numprocs--;
+		spinlock_release(&sp_numprocs);
+		return NULL;
+	}
+
 	/* The kernel process has a pid of 0 and add it to allprocs array */
 	if(strcmp(name,KERNELPROC) == 0){
 		KASSERT(numprocs == 1);
@@ -133,7 +157,6 @@ proc_create(const char *name)
 		
 		spinlock_release(&sp_allprocs);
 	}
-
 
 	return proc;
 }
@@ -223,12 +246,15 @@ proc_destroy(struct proc *proc)
 
 	//TODO: decrement the number of processes and remove from allprocs
 	spinlock_acquire(&sp_allprocs);
-	procarray_remove(&allprocs,proc->p_pid);
+	procarray_set(&allprocs,NULL,proc->p_pid);
 	spinlock_acquire(&sp_allprocs);
 
 	spinlock_acquire(&sp_numprocs);
 	numprocs--;
 	spinlock_release(&sp_numprocs);
+
+	/* Cleanup the associated file handles array */
+	fharray_cleanup(proc->p_fhs);
 
 	kfree(proc->p_name);
 	kfree(proc);
@@ -403,24 +429,15 @@ proc_assignpid(struct proc *newproc){
 	KASSERT(numprocs < MAX_PID);
 
 	pid_t ret = 0;
-
-	if(next_pid >= MAX_PID){
-		next_pid = 0;
-	}
-
-	while(next_pid < MAX_PID){
-		if(procarray_get(&allprocs,next_pid) == NULL){
-			ret = next_pid;
-			next_pid++;
+	for(ret = 1;ret < MAX_PID; ret++){
+		if(procarray_get(&allprocs,ret) == NULL){
 			break;
-		}else{
-			if(next_pid == MAX_PID - 1){
-				next_pid = 1; // not setting to 0 since it is reserved for KERNELPROC
-			}else{
-				next_pid++;
-			}
 		}
 	}
+
+	/* proc_create will call this function only when numprocs < MAX_PID */
+	KASSERT(ret != MAX_PID);
+	KASSERT(procarray_get(&allprocs,ret) == NULL);
 
 	return ret;
 }
@@ -430,11 +447,7 @@ proc_assignpid(struct proc *newproc){
  */
 struct proc*
 get_process(pid_t ppid){
-	if(ppid < 0){
-		return NULL;
-	}
-
-	if(ppid >= MAX_PID){
+	if(ppid < 0 || ppid >= MAX_PID){
 		return NULL;
 	}
 
