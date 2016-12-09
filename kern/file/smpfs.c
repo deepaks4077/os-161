@@ -55,6 +55,7 @@ struct *fh  _fh_add(int flag, struct vnode *file, struct fharray *fhs, int* errn
         return NULL;
     }
 
+    handle->fd = fd;
     fharray_set(fhs,fd,handle);
 
     return 0;
@@ -137,13 +138,14 @@ struct fh * _fh_create(int flag, struct vnode *file, int* errno){
 
     /* W , R , RW */
 	if ( 
-		((flags & O_RDONLY) && (flags & O_WRONLY)) ||
-		((flags & O_RDWR) && ((flags & O_RDONLY) || (flags & O_WRONLY)))
+		((flag & O_RDONLY) && (flag & O_WRONLY)) ||
+		((flag & O_RDWR) && ((flag & O_RDONLY) || (flag & O_WRONLY)))
 	) {
 		*errno  = EINVAL;
 		return NULL;
 	}
 
+    handle->flag = flag;
     handle->fh_seek = 0;
     handle->fh_vnode = file;
 

@@ -24,7 +24,12 @@ int sys_write(int fd, const void *buf, size_t nbytes, int* errno){
     }
 
     struct fh *handle = _get_fh(fd,curproc->p_fhs);
-    if(handle == NULL || handle->fh_mode == READ){
+    if(handle == NULL){
+        *errno = EBADF;
+        return 1;
+    }
+
+    if(handle->flag && O_RDONLY){
         *errno = EBADF;
         return 1;
     }
