@@ -11,7 +11,6 @@
 /*
  * get process id of the current process
  */
-
 pid_t sys_getpid(struct proc *curprocess){
     return curprocess->p_pid;
 }

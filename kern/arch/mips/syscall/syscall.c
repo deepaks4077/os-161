@@ -124,8 +124,8 @@ syscall(struct trapframe *tf)
 		err = sys_exit(
 						(int)tf->tf_a0,
 						(void *)tf->tf_a1,
-						(size_t)tf->tf_a2,
-						&retval	
+						(size_t)*tf->tf_a2,
+						&retval
 					);
 		break;
 		// case SYS_waitpid:
