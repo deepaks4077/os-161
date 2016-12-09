@@ -11,9 +11,9 @@
 
 static struct fh * _fh_create(int flag, struct vnode *file);
 static int _fh_allotfd(struct fharray *fhs);
-static struct* fh _get_fh(int fd, struct fharray* fhs);
+static struct fh * _get_fh(int fd, struct fharray* fhs);
 
-int _fh_write(struct fh* handle, void* buf, size_t nbytes, ssize_t ssize, int* ret){
+int _fh_write(struct fh* handle, void* buf, size_t nbytes, int* ret){
     
     int errno;
     struct uio* uio;
@@ -71,7 +71,7 @@ void _fhs_close(int fd, struct fharray *fhs){
 }
 
 /* Bootstrap the file handler table by initializing it and adding console file handles */
-int _fh_bootstrap(struct proc* process){
+int _fh_bootstrap(struct proc *process){
 
     DEBUG(DB_VFS, "Bootstrapping for process : %s\n", process->p_name);
 
