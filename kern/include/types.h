@@ -80,7 +80,7 @@
 #include <kern/types.h>
 
 /* Get machine-dependent types not visible to userland. */
-#include <compile/machine/types.h>
+#include <machine/types.h>
 
 /*
  * Define userptr_t as a pointer to a one-byte struct, so it won't mix
