@@ -9,9 +9,8 @@
 #include <proc.h>
 #include <kern/iovec.h>
 
-static struct fh * _fh_create(int flag, struct vnode *file);
+static struct fh * _fh_create(int flag, struct vnode *file, int* errno);
 static int _fh_allotfd(struct fharray *fhs);
-static struct fh * _get_fh(int fd, struct fharray* fhs);
 
 int _fh_write(struct fh* handle, void* buf, size_t nbytes, int* ret){
     
@@ -41,7 +40,7 @@ int _fh_write(struct fh* handle, void* buf, size_t nbytes, int* ret){
 
 
 /* Create and add a file handle to the process file handler table */
-struct *fh  _fh_add(int flag, struct vnode *file, struct fharray *fhs, int* errno){
+struct fh *  _fh_add(int flag, struct vnode *file, struct fharray *fhs, int* errno){
     uint32_t fd = _fh_allotfd(fhs);
     if(fd == MAX_FD){
         *errno = EMFILE;
@@ -49,9 +48,8 @@ struct *fh  _fh_add(int flag, struct vnode *file, struct fharray *fhs, int* errn
     }
     KASSERT(fharray_get(fhs,fd) == NULL);
 
-    struct fh* handle = _fh_create(flag,file);
+    struct fh* handle = _fh_create(flag,file,errno);
     if(handle == NULL){
-        *errno = ENOMEM;
         return NULL;
     }
 
@@ -76,11 +74,11 @@ int _fh_bootstrap(struct proc *process){
     DEBUG(DB_VFS, "Bootstrapping for process : %s\n", process->p_name);
 
     /* Initialize the file handle array of this process */
-	fharray_init(process->p_fhs);
-    fharray_setsize(process->p_fhs,MAX_FD);
+	fharray_init(&process->p_fhs);
+    fharray_setsize(&process->p_fhs,MAX_FD);
 
     /* String variables initialized for passage to vfs_open */
-    char* console_inp = "con:";
+    char* console_inp = kstrdup(CONSOLE);
     char* console_out = kstrdup(console_inp);
     char* console_err = kstrdup(console_inp);
 
@@ -89,49 +87,49 @@ int _fh_bootstrap(struct proc *process){
 
 	/* Initialize the console files STDIN, STDOUT and STDERR */
 	struct vnode *stdin;
-	ret = vfs_open(console_inp,O_RDONLY,0,stdin);
+	ret = vfs_open(console_inp,O_RDONLY,0,&stdin);
     if(ret != 0){
         return ret;
     }
 	
-    struct fh *stdinfh = _fh_create(O_RDONLY,stdin);
+    struct fh *stdinfh = _fh_create(O_RDONLY,stdin,NULL);
 	stdinfh->fd = STDIN_FILENO;
-    fharray_add(process->p_fhs,stdinfh);
+    fharray_add(&process->p_fhs,stdinfh,NULL);
 
 	struct vnode *stdout;
-	ret = vfs_open(console_out,O_WRONLY,0,stdout);
+	ret = vfs_open(console_out,O_WRONLY,0,&stdout);
 	if(ret != 0){
         return ret;
     }
 
-    struct fh *stdoutfh = _fh_create(O_WRONLY,stdout);
+    struct fh *stdoutfh = _fh_create(O_WRONLY,stdout,NULL);
 	stdoutfh->fd = STDOUT_FILENO;
-    fharray_add(process->p_fhs,stdoutfh);
+    fharray_add(&process->p_fhs,stdoutfh,NULL);
 
 	struct vnode *stderr;
-	ret = vfs_open(console_err,O_WRONLY,0,stderr);
+	ret = vfs_open(console_err,O_WRONLY,0,&stderr);
 	if(ret != 0){
         return ret;
     }
-    struct fh *stderrfh = _fh_create(O_WRONLY,stderr);
+    struct fh *stderrfh = _fh_create(O_WRONLY,stderr,NULL);
 	stderrfh->fd = STDERR_FILENO;
-	fharray_add(process->p_fhs,stderrfh);
+	fharray_add(&process->p_fhs,stderrfh,NULL);
+	
+	return 0;
 
 	/* Initialization of stdin, out and err filehandlers complete */
 }
 
-static
-struct fh* _get_fh(int fd, struct fharray* fhs){
+struct fh * _get_fh(int fd, struct fharray* fhs){
     if(fd < 0 || fd > MAX_FD){
         return NULL;
     }
 
-    return fharray_get(curproc->p_fhs,fd);
+    return fharray_get(fhs,fd);
 }
 
 /* Create a file handle */
-static
-struct fh * _fh_create(int flag, struct vnode *file, int* errno){
+static struct fh * _fh_create(int flag, struct vnode *file, int* errno){
 
     KASSERT(file != NULL);
     struct fh *handle;
@@ -147,7 +145,7 @@ struct fh * _fh_create(int flag, struct vnode *file, int* errno){
 
     handle->flag = flag;
     handle->fh_seek = 0;
-    handle->fh_vnode = file;
+    handle->fh_vnode = &file;
 
     return handle;
 }
