@@ -69,13 +69,13 @@ void _fhs_close(int fd, struct fharray *fhs){
 }
 
 /* Bootstrap the file handler table by initializing it and adding console file handles */
-int _fh_bootstrap(struct proc *process){
+int _fh_bootstrap(struct fharray *fhs){
 
     DEBUG(DB_VFS, "Bootstrapping for process : %s\n", process->p_name);
 
     /* Initialize the file handle array of this process */
-	fharray_init(&process->p_fhs);
-    fharray_setsize(&process->p_fhs,MAX_FD);
+	fharray_init(fhs);
+    fharray_setsize(fhs,MAX_FD);
 
     /* String variables initialized for passage to vfs_open */
     char* console_inp = kstrdup(CONSOLE);
@@ -94,7 +94,7 @@ int _fh_bootstrap(struct proc *process){
 	
     struct fh *stdinfh = _fh_create(O_RDONLY,stdin,NULL);
 	stdinfh->fd = STDIN_FILENO;
-    fharray_add(&process->p_fhs,stdinfh,NULL);
+    fharray_add(fhs,stdinfh,NULL);
 
 	struct vnode *stdout;
 	ret = vfs_open(console_out,O_WRONLY,0,&stdout);
@@ -104,7 +104,7 @@ int _fh_bootstrap(struct proc *process){
 
     struct fh *stdoutfh = _fh_create(O_WRONLY,stdout,NULL);
 	stdoutfh->fd = STDOUT_FILENO;
-    fharray_add(&process->p_fhs,stdoutfh,NULL);
+    fharray_add(fhs,stdoutfh,NULL);
 
 	struct vnode *stderr;
 	ret = vfs_open(console_err,O_WRONLY,0,&stderr);
@@ -113,7 +113,7 @@ int _fh_bootstrap(struct proc *process){
     }
     struct fh *stderrfh = _fh_create(O_WRONLY,stderr,NULL);
 	stderrfh->fd = STDERR_FILENO;
-	fharray_add(&process->p_fhs,stderrfh,NULL);
+	fharray_add(fhs,stderrfh,NULL);
 	
 	return 0;
 
