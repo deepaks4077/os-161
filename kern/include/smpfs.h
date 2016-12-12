@@ -1,3 +1,6 @@
+#ifndef _FILEHANDLER_H_
+#define _FILEHANDLER_H_
+
 #include <array.h>
 #include <vnode.h>
 #include <kern/fcntl.h>
@@ -22,3 +25,5 @@ int _fh_write(struct fh* handle, const void *buf, size_t nbytes, int* ret);
 struct fh * _fh_add(int flag, struct vnode *file, struct fharray *fhs, int* errno);
 void _fhs_close(int fd, struct fharray *fhs);
 int _fh_bootstrap(struct fharray *fhs);
+
+#endif /*_FILEHANDLER_H_*/

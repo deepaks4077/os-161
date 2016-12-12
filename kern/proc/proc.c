@@ -119,8 +119,9 @@ proc_create(const char *name)
 	/* parent process is NULL by default. Assign the parent inside fork */
 	proc->p_parent = NULL;
 
+	DEBUG(DB_VFS, "Bootstrapping for process : %s\n", proc->p_name);
 	/* bootstrap the console file handles */
-	int ret = _fh_bootstrap(proc);
+	int ret = _fh_bootstrap(&proc->p_fhs);
 	if(ret != 0){
 		kfree(proc);
 		spinlock_acquire(&sp_numprocs);
@@ -129,9 +130,9 @@ proc_create(const char *name)
 		return NULL;
 	}
 	
-	if(fharray_get(proc->p_fhs,0) == NULL || 
-	   fharray_get(proc->p_fhs,1) == NULL || 
-	   fharray_get(proc->p_fhs,2) == NULL ){
+	if(fharray_get(&proc->p_fhs,0) == NULL || 
+	   fharray_get(&proc->p_fhs,1) == NULL || 
+	   fharray_get(&proc->p_fhs,2) == NULL ){
 		
 		kfree(proc);
 		spinlock_acquire(&sp_numprocs);
@@ -246,15 +247,21 @@ proc_destroy(struct proc *proc)
 
 	//TODO: decrement the number of processes and remove from allprocs
 	spinlock_acquire(&sp_allprocs);
-	procarray_set(&allprocs,NULL,proc->p_pid);
+	procarray_set(&allprocs,proc->p_pid,NULL);
 	spinlock_acquire(&sp_allprocs);
 
 	spinlock_acquire(&sp_numprocs);
 	numprocs--;
 	spinlock_release(&sp_numprocs);
 
+	/* All elements inside p_fhs need to be deallocated */
+	int idx = 0;
+	for(idx=0;idx<(int)fharray_num(&proc->p_fhs);idx++){
+		kfree(fharray_get(&proc->p_fhs,idx));
+	}
+
 	/* Cleanup the associated file handles array */
-	fharray_cleanup(proc->p_fhs);
+	fharray_cleanup(&proc->p_fhs);
 
 	kfree(proc->p_name);
 	kfree(proc);

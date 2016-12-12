@@ -12,26 +12,26 @@
 static struct fh * _fh_create(int flag, struct vnode *file, int* errno);
 static int _fh_allotfd(struct fharray *fhs);
 
-int _fh_write(struct fh* handle, void* buf, size_t nbytes, int* ret){
+int _fh_write(struct fh* handle, const void* buf, size_t nbytes, int* ret){
     
     int errno;
-    struct uio* uio;
-    struct iovec* iov;
-    iov->iov_base = buf;
-    iov->iov_len = ssize;
+    struct uio uio;
+    struct iovec iov;
+    iov.iov_ubase = *(userptr_t *)buf;
+    iov.iov_len = nbytes;
 
-    uio->uio_iov = iov;
-    uio->uio_iovcnt = 1;
-    uio->uio_offset = handle->fh_seek;
-    uio->uio_resid = nbytes;
-    uio->uio_segflag = UIO_USERSPACE;
-    uio->uio_rw = UIO_WRITE;
-    uio->uio_space = proc_getas();
+    uio.uio_iov = &iov;
+    uio.uio_iovcnt = 1;
+    uio.uio_offset = handle->fh_seek;
+    uio.uio_resid = nbytes;
+    uio.uio_segflg = UIO_USERSPACE;
+    uio.uio_rw = UIO_WRITE;
+    uio.uio_space = proc_getas();
 
-    errno = VOP_WRITE(*handle->fh_vnode,uio);
+    errno = VOP_WRITE(*handle->fh_vnode,&uio);
 
     if(errno == 0){
-        *ret = nbytes - uio->uio_resid;
+        *ret = nbytes - uio.uio_resid;
         handle->fh_seek = handle->fh_seek + *ret;
     }
 
@@ -63,15 +63,16 @@ struct fh *  _fh_add(int flag, struct vnode *file, struct fharray *fhs, int* err
 void _fhs_close(int fd, struct fharray *fhs){
     KASSERT(fhs != NULL);
     KASSERT(fd >= 0 && fd < MAX_FD);
-    
+   
+	/* Deallocate this piece of memmory since 
+	file handles are created from the heap */
+	kfree(fharray_get(fhs,fd)); 
     fharray_set(fhs, fd, NULL);
     KASSERT(fharray_get(fhs,fd) == NULL);
 }
 
 /* Bootstrap the file handler table by initializing it and adding console file handles */
 int _fh_bootstrap(struct fharray *fhs){
-
-    DEBUG(DB_VFS, "Bootstrapping for process : %s\n", process->p_name);
 
     /* Initialize the file handle array of this process */
 	fharray_init(fhs);
@@ -132,7 +133,7 @@ struct fh * _get_fh(int fd, struct fharray* fhs){
 static struct fh * _fh_create(int flag, struct vnode *file, int* errno){
 
     KASSERT(file != NULL);
-    struct fh *handle;
+    struct fh *handle = (struct fh *)kmalloc(sizeof(struct fh *));
 
     /* W , R , RW */
 	if ( 

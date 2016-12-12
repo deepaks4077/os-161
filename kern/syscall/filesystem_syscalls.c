@@ -23,7 +23,7 @@ int sys_write(int fd, const void *buf, size_t nbytes, int* errno){
         return ret;
     }
 
-    struct fh *handle = _get_fh(fd,curproc->p_fhs);
+    struct fh *handle = _get_fh(fd,&curproc->p_fhs);
     if(handle == NULL){
         *errno = EBADF;
         return 1;
@@ -34,5 +34,5 @@ int sys_write(int fd, const void *buf, size_t nbytes, int* errno){
         return 1;
     }
 
-    return _fh_write(handle,buf,nbytes,*ssize,errno);
+    return _fh_write(handle,buf,nbytes,errno);
 }
