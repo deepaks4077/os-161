@@ -120,26 +120,6 @@ proc_create(const char *name)
 	proc->p_parent = NULL;
 
 	DEBUG(DB_VFS, "Bootstrapping for process : %s\n", proc->p_name);
-	/* bootstrap the console file handles */
-	int ret = _fh_bootstrap(&proc->p_fhs);
-	if(ret != 0){
-		kfree(proc);
-		spinlock_acquire(&sp_numprocs);
-		numprocs--;
-		spinlock_release(&sp_numprocs);
-		return NULL;
-	}
-	
-	if(fharray_get(&proc->p_fhs,0) == NULL || 
-	   fharray_get(&proc->p_fhs,1) == NULL || 
-	   fharray_get(&proc->p_fhs,2) == NULL ){
-		
-		kfree(proc);
-		spinlock_acquire(&sp_numprocs);
-		numprocs--;
-		spinlock_release(&sp_numprocs);
-		return NULL;
-	}
 
 	/* The kernel process has a pid of 0 and add it to allprocs array */
 	if(strcmp(name,KERNELPROC) == 0){
@@ -149,6 +129,31 @@ proc_create(const char *name)
 		KASSERT(proc->p_pid == KERNEL_PID);
 	}else{
 	/* Otherwise, assign the pid from the available pids */
+	/* bootstrap the console file handles */
+
+	/* In main.c the kernel process is bootstrapped before the vfs is bootstrapped,
+		this means that we can't create file handles using _fh_create. Soln => Kernel process
+		does not need these syscalls? */
+		int ret = _fh_bootstrap(&proc->p_fhs);
+		if(ret != 0){
+			kfree(proc);
+			spinlock_acquire(&sp_numprocs);
+			numprocs--;
+			spinlock_release(&sp_numprocs);
+			return NULL;
+		}
+		
+		if(fharray_get(&proc->p_fhs,0) == NULL || 
+		fharray_get(&proc->p_fhs,1) == NULL || 
+		fharray_get(&proc->p_fhs,2) == NULL ){
+			
+			kfree(proc);
+			spinlock_acquire(&sp_numprocs);
+			numprocs--;
+			spinlock_release(&sp_numprocs);
+			return NULL;
+		}
+
 		spinlock_acquire(&sp_allprocs);
 
 		pid_t newpid = proc_assignpid(proc);
