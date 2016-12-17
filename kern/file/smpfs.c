@@ -48,8 +48,10 @@ struct fh *  _fh_add(int flag, struct vnode *file, struct fharray *fhs, int* err
     }
     KASSERT(fharray_get(fhs,fd) == NULL);
 
-    struct fh* handle = _fh_create(flag,file,errno);
-    if(handle == NULL){
+    struct fh *handle = (struct fh *)kmalloc(sizeof(struct fh *));
+    int ret = _fh_create(flag,file,handle);
+    if(ret != 0){
+        *errno = ret;
         return NULL;
     }
 
