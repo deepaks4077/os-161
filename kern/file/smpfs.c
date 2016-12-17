@@ -76,7 +76,6 @@ int _fh_bootstrap(struct fharray *fhs){
 
     /* Initialize the file handle array of this process */
 	fharray_init(fhs);
-    fharray_setsize(fhs,MAX_FD);
 
     /* String variables initialized for passage to vfs_open */
     char* console_inp = kstrdup(CONSOLE);
@@ -92,16 +91,25 @@ int _fh_bootstrap(struct fharray *fhs){
     if(ret != 0){
         return ret;
     }
-	
+	kfree(console_inp);
+
+	struct fh *stdinfh = (struct fh *)kmalloc(sizeof(struct fh *));	
+	stdinfh->flag = O_RDONLY;
+	stdinfh->fh_seek = 0;
+	stdinfh->fh_vnode = &stdin;
+	stdinfh->fd = STDIN_FILENO;
+	fharray_add(fhs,stdinfh,NULL);
+/*
     struct fh *stdinfh = _fh_create(O_RDONLY,stdin,NULL);
 	stdinfh->fd = STDIN_FILENO;
     fharray_add(fhs,stdinfh,NULL);
-
+*/
 	struct vnode *stdout;
 	ret = vfs_open(console_out,O_WRONLY,0,&stdout);
 	if(ret != 0){
         return ret;
     }
+	kfree(console_out);
 
     struct fh *stdoutfh = _fh_create(O_WRONLY,stdout,NULL);
 	stdoutfh->fd = STDOUT_FILENO;
@@ -112,9 +120,13 @@ int _fh_bootstrap(struct fharray *fhs){
 	if(ret != 0){
         return ret;
     }
+	kfree(console_err);
+
     struct fh *stderrfh = _fh_create(O_WRONLY,stderr,NULL);
 	stderrfh->fd = STDERR_FILENO;
 	fharray_add(fhs,stderrfh,NULL);
+
+    fharray_setsize(fhs,MAX_FD);	
 	
 	return 0;
 
