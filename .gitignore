@@ -10,3 +10,4 @@ build
 /root/
 *.swo
 *.swp
+push-to-ups.sh
