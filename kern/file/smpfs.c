@@ -40,7 +40,7 @@ int _fh_write(struct fh* handle, const void* buf, size_t nbytes, int* ret){
 
 
 /* Create and add a file handle to the process file handler table */
-struct fh *  _fh_add(int flag, struct vnode *file, struct fharray *fhs, int* errno){
+struct fh *  _fh_add(int flag, struct vnode **file, struct fharray *fhs, int* errno){
     uint32_t fd = _fh_allotfd(fhs);
     if(fd == MAX_FD){
         *errno = EMFILE;
@@ -88,15 +88,15 @@ int _fh_bootstrap(struct fharray *fhs){
     int ret = 0;
 
 	/* Initialize the console files STDIN, STDOUT and STDERR */
-	struct vnode *stdin;
-	ret = vfs_open(console_inp,O_RDONLY,0,&stdin);
+	struct vnode **stdin;
+	ret = vfs_open(console_inp,O_RDONLY,0,stdin);
     if(ret != 0){
         return ret;
     }
 	kfree(console_inp);
 
 	struct fh *stdinfh = kmalloc(sizeof(struct fh));
-    ret =  _fh_create(O_RDONLY,&stdin,stdinfh);
+    ret =  _fh_create(O_RDONLY,stdin,stdinfh);
     if(ret != 0){
         return ret;
     }
@@ -104,15 +104,15 @@ int _fh_bootstrap(struct fharray *fhs){
 	stdinfh->fd = STDIN_FILENO;
 	fharray_add(fhs,stdinfh,NULL);
 
-	struct vnode *stdout;
-	ret = vfs_open(console_out,O_WRONLY,0,&stdout);
+	struct vnode **stdout;
+	ret = vfs_open(console_out,O_WRONLY,0,stdout);
 	if(ret != 0){
         return ret;
     }
 	kfree(console_out);
 
 	struct fh *stdoutfh = kmalloc(sizeof(struct fh));
-    ret =  _fh_create(O_WRONLY,&stdout,stdoutfh);
+    ret =  _fh_create(O_WRONLY,stdout,stdoutfh);
     if(ret != 0){
         return ret;
     }
@@ -120,15 +120,15 @@ int _fh_bootstrap(struct fharray *fhs){
 	stdoutfh->fd = STDOUT_FILENO;
 	fharray_add(fhs,stdoutfh,NULL);
 
-	struct vnode *stderr;
-	ret = vfs_open(console_err,O_WRONLY,0,&stderr);
+	struct vnode **stderr;
+	ret = vfs_open(console_err,O_WRONLY,0,stderr);
 	if(ret != 0){
         return ret;
     }
 	kfree(console_err);
 
 	struct fh *stderrfh = kmalloc(sizeof(struct fh));
-    ret =  _fh_create(O_WRONLY,&stderr,stderrfh);
+    ret =  _fh_create(O_WRONLY,stderr,stderrfh);
     if(ret != 0){
         return ret;
     }
