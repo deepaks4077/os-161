@@ -9,7 +9,7 @@
 #include <proc.h>
 #include <kern/iovec.h>
 
-static int _fh_create(int flag, struct vnode *file, struct fh *handle);
+static int _fh_create(int flag, struct vnode **file, struct fh *handle);
 static int _fh_allotfd(struct fharray *fhs);
 
 int _fh_write(struct fh* handle, const void* buf, size_t nbytes, int* ret){
@@ -95,8 +95,8 @@ int _fh_bootstrap(struct fharray *fhs){
     }
 	kfree(console_inp);
 
-	struct fh *stdinfh = (struct fh *)kmalloc(sizeof(struct fh *));
-    ret =  _fh_create(O_RDONLY,stdin,stdinfh);
+	struct fh *stdinfh = kmalloc(sizeof(struct fh));
+    ret =  _fh_create(O_RDONLY,&stdin,stdinfh);
     if(ret != 0){
         return ret;
     }
@@ -111,8 +111,8 @@ int _fh_bootstrap(struct fharray *fhs){
     }
 	kfree(console_out);
 
-	struct fh *stdoutfh = (struct fh *)kmalloc(sizeof(struct fh *));
-    ret =  _fh_create(O_WRONLY,stdout,stdoutfh);
+	struct fh *stdoutfh = kmalloc(sizeof(struct fh));
+    ret =  _fh_create(O_WRONLY,&stdout,stdoutfh);
     if(ret != 0){
         return ret;
     }
@@ -127,8 +127,8 @@ int _fh_bootstrap(struct fharray *fhs){
     }
 	kfree(console_err);
 
-	struct fh *stderrfh = (struct fh *)kmalloc(sizeof(struct fh *));
-    ret =  _fh_create(O_WRONLY,stderr,stderrfh);
+	struct fh *stderrfh = kmalloc(sizeof(struct fh));
+    ret =  _fh_create(O_WRONLY,&stderr,stderrfh);
     if(ret != 0){
         return ret;
     }
@@ -152,7 +152,7 @@ struct fh * _get_fh(int fd, struct fharray* fhs){
 }
 
 /* Create a file handle */
-static int _fh_create(int flag, struct vnode *file, struct fh *handle){
+static int _fh_create(int flag, struct vnode **file, struct fh *handle){
 
     KASSERT(file != NULL);
 
@@ -167,7 +167,7 @@ static int _fh_create(int flag, struct vnode *file, struct fh *handle){
 
     handle->flag = flag;
     handle->fh_seek = 0;
-    handle->fh_vnode = &file;
+    handle->fh_vnode = file;
 
     return 0;
 }
