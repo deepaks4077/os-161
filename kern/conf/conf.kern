@@ -388,7 +388,9 @@ file      syscall/time_syscalls.c
 
 # Custom system calls for ASST2
 defoption syscalls
+optfile	  syscalls  syscall/filesystem_syscalls.c
 optfile   syscalls	syscall/process_syscalls.c
+optfile   syscalls  file/smpfs.c
 
 #
 # Startup and initialization

@@ -17,7 +17,7 @@ int _fh_write(struct fh* handle, const void* buf, size_t nbytes, int* ret){
     int errno;
     struct uio uio;
     struct iovec iov;
-    iov.iov_ubase = *(userptr_t *)buf;
+    iov.iov_ubase = (userptr_t)buf;
     iov.iov_len = nbytes;
 
     uio.uio_iov = &iov;
@@ -88,7 +88,7 @@ int _fh_bootstrap(struct fharray *fhs){
     int ret = 0;
 
 	/* Initialize the console files STDIN, STDOUT and STDERR */
-	struct vnode **stdin;
+	struct vnode **stdin = kmalloc(sizeof(struct vnode *));
 	ret = vfs_open(console_inp,O_RDONLY,0,stdin);
     if(ret != 0){
         return ret;
@@ -104,7 +104,7 @@ int _fh_bootstrap(struct fharray *fhs){
 	stdinfh->fd = STDIN_FILENO;
 	fharray_add(fhs,stdinfh,NULL);
 
-	struct vnode **stdout;
+	struct vnode **stdout = kmalloc(sizeof(struct vnode *));
 	ret = vfs_open(console_out,O_WRONLY,0,stdout);
 	if(ret != 0){
         return ret;
@@ -120,7 +120,7 @@ int _fh_bootstrap(struct fharray *fhs){
 	stdoutfh->fd = STDOUT_FILENO;
 	fharray_add(fhs,stdoutfh,NULL);
 
-	struct vnode **stderr;
+	struct vnode **stderr = kmalloc(sizeof(struct vnode *));
 	ret = vfs_open(console_err,O_WRONLY,0,stderr);
 	if(ret != 0){
         return ret;

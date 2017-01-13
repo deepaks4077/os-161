@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013
+  (c) 2013
  *	The President and Fellows of Harvard College.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -259,8 +259,18 @@ proc_destroy(struct proc *proc)
 	numprocs--;
 	spinlock_release(&sp_numprocs);
 
-	/* All elements inside p_fhs need to be deallocated */
+
+	/* The console vnodes need to be deallocated before the file handler array*/
 	int idx = 0;
+	struct fh *tmp;
+	for(idx = 0;idx<2;idx++){
+		tmp = fharray_get(&proc->p_fhs,idx);	
+		kfree(tmp->fh_vnode);
+	}
+
+
+	/* All elements inside p_fhs need to be deallocated */
+	idx = 0;
 	for(idx=0;idx<(int)fharray_num(&proc->p_fhs);idx++){
 		kfree(fharray_get(&proc->p_fhs,idx));
 	}
