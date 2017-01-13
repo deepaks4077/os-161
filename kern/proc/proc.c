@@ -268,7 +268,6 @@ proc_destroy(struct proc *proc)
 		kfree(tmp->fh_vnode);
 	}
 
-
 	/* All elements inside p_fhs need to be deallocated */
 	idx = 0;
 	for(idx=0;idx<(int)fharray_num(&proc->p_fhs);idx++){

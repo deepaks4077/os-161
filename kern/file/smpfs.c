@@ -12,6 +12,32 @@
 static int _fh_create(int flag, struct vnode **file, struct fh *handle);
 static int _fh_allotfd(struct fharray *fhs);
 
+int _fh_read(struct fh* handle, const void* buf, size_t nbytes, int* ret){
+    
+    int errno;
+    struct uio uio;
+    struct iovec iov;
+    iov.iov_ubase = (userptr_t)buf;
+    iov.iov_len = nbytes;
+
+    uio.uio_iov = &iov;
+    uio.uio_iovcnt = 1;
+    uio.uio_offset = handle->fh_seek;
+    uio.uio_resid = nbytes;
+    uio.uio_segflg = UIO_USERSPACE;
+    uio.uio_rw = UIO_READ;
+    uio.uio_space = proc_getas();
+
+    errno = VOP_READ(*handle->fh_vnode,&uio);
+
+    if(errno == 0){
+        *ret = nbytes - uio.uio_resid;
+        handle->fh_seek = handle->fh_seek + *ret;
+    }
+
+    return errno;    
+}
+
 int _fh_write(struct fh* handle, const void* buf, size_t nbytes, int* ret){
     
     int errno;
