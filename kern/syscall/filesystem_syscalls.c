@@ -9,6 +9,7 @@
 #include <copyinout.h>
 #include <uio.h>
 #include <spinlock.h>
+#include <limits.h>
 
 int sys_open(struct fharray *pfhs, userptr_t path, int flags, int* retval){
 
@@ -55,7 +56,7 @@ int sys_read(int fd, const void *buf, size_t nbytes, int* retval){
         return EBADF;
     }
 
-    return _fh_read(handle,buf,nbytes,errno);
+    return _fh_read(handle,buf,nbytes,retval);
 }
 
 
@@ -77,8 +78,8 @@ int sys_write(int fd, const void *buf, size_t nbytes, int* retval){
     }
 
     if(handle->flag && O_RDONLY){
-        return EBAF;
+        return EBADF;
     }
 
-    return _fh_write(handle,buf,nbytes,errno);
+    return _fh_write(handle,buf,nbytes,retval);
 }

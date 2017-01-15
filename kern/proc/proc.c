@@ -270,7 +270,6 @@ proc_destroy(struct proc *proc)
 
 	/* The file handler filenames need to be deallocated before the file handler array*/
 	idx = 0;
-	struct fh *tmp;
 	for(idx = 0;idx<2;idx++){
 		tmp = fharray_get(&proc->p_fhs,idx);	
 		kfree(tmp->filename);

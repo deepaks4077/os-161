@@ -63,7 +63,8 @@ pid_t sys_getpid(struct proc *curprocess);
 void sys_exit(void);
 
 /* File system related prototypes */
+int sys_open(struct fharray *pfhs, userptr_t path, int flags, int* retval);
 int sys_write(int fd, const void *buf, size_t nbytes, int* errno);
-
+int sys_read(int fd, const void *buf, size_t nbytes, int* retval);
 
 #endif /* _SYSCALL_H_ */

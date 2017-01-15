@@ -74,7 +74,7 @@ int _fh_open(struct fharray *handlers, char* path, int flags, int* ret){
 
     if(flags & O_APPEND){
         struct stat filestats;
-        VOP_STAT(handle->vnode, &filestats);
+        VOP_STAT(*handle->fh_vnode, &filestats);
         handle->fh_seek = filestats.st_size;
     }
     
@@ -161,7 +161,7 @@ void _fhs_close(int fd, struct fharray *fhs){
     /* Close the handler if the refs drops to 0 */
     if(handle->refs == 0){
         lock_release(handle->fh_lock);
-        vfs_close(handle->fh_vnode);
+        vfs_close(*handle->fh_vnode);
         lock_destroy(handle->fh_lock);
         kfree(handle->filename);
         kfree(handle);
@@ -169,7 +169,7 @@ void _fhs_close(int fd, struct fharray *fhs){
         lock_release(handle->fh_lock);
     }
 
-    fharray_set(handle,fd,NULL);
+    fharray_set(fhs,fd,NULL);
 
     KASSERT(fharray_get(fhs,fd) == NULL);
 }
