@@ -4,6 +4,7 @@
 #include <array.h>
 #include <vnode.h>
 #include <kern/fcntl.h>
+#include <synch.h>
 
 #define CONSOLE "con:"
 #define MAX_FD 1000
