@@ -1,16 +1,90 @@
 #include <types.h>
 #include <lib.h>
+#include <kern/unistd.h>
+#include <kern/errno.h>
+#include <kern/stat.h>
+#include <uio.h>
+#include <proc.h>
 #include <smpfs.h>
 #include <vnode.h>
 #include <vfs.h>
-#include <kern/unistd.h>
-#include <kern/errno.h>
-#include <uio.h>
-#include <proc.h>
 #include <kern/iovec.h>
 
-static int _fh_create(int flag, struct vnode **file, struct fh *handle);
 static int _fh_allotfd(struct fharray *fhs);
+
+int _fh_open(struct fharray *handlers, char* path, int flags, int* ret){
+
+    int fd = _fh_allotfd(handlers);
+    KASSERT(fd <= MAX_FD);
+    if(fd == MAX_FD){
+        *ret = EMFILE;
+        return ERR;
+    }
+    
+    /* W , R , RW */
+	if ( 
+		((flags & O_RDONLY) && (flags & O_WRONLY)) ||
+		((flags & O_RDWR) && ((flags & O_RDONLY) || (flags & O_WRONLY)))
+	) {
+        *ret = EINVAL;
+		return ERR;
+	}
+
+    struct fh *handle = kmalloc(sizeof(struct fh));
+    if(handle == NULL){
+        return EINVAL;
+    }
+
+    handle->filename = kstrdup(path);
+    if(handle->filename == NULL){
+        kfree(handle);
+        return EINVAL;
+    }
+
+    struct lock *lk= lock_create(handle->filename);
+    if(lk == NULL){
+        kfree(handle->filename);
+        kfree(handle);
+        return EINVAL;
+    }
+
+    struct vnode **obj = kmalloc(sizeof(struct vnode *));
+    if(obj == NULL){
+        kfree(handle->filename);
+        kfree(handle);
+        lock_destroy(lk);
+        return EINVAL;
+    }
+
+	*ret = vfs_open(path,flags,0,obj);
+    if(*ret != 0){
+        kfree(handle->filename);
+        kfree(obj);
+        lock_destroy(lk);
+        kfree(handle);
+        return *ret;
+    }
+
+    handle->flag = flags;
+    handle->fh_seek = 0;
+    handle->refs = 1;
+    handle->fd = fd;
+    handle->fh_lock = lk; 
+    handle->fh_vnode = obj;
+
+    if(flags & O_APPEND){
+        struct stat filestats;
+        VOP_STAT(handle->vnode, &filestats);
+        handle->fh_seek = filestats.st_size;
+    }
+    
+    fharray_set(handlers,fd,handle);
+    KASSERT(fharray_get(handlers,fd) == handle);
+    *ret = fd;
+
+    return SUCC;
+}
+
 
 int _fh_read(struct fh* handle, const void* buf, size_t nbytes, int* ret){
     
@@ -19,6 +93,8 @@ int _fh_read(struct fh* handle, const void* buf, size_t nbytes, int* ret){
     struct iovec iov;
     iov.iov_ubase = (userptr_t)buf;
     iov.iov_len = nbytes;
+
+    lock_acquire(handle->fh_lock);
 
     uio.uio_iov = &iov;
     uio.uio_iovcnt = 1;
@@ -35,6 +111,8 @@ int _fh_read(struct fh* handle, const void* buf, size_t nbytes, int* ret){
         handle->fh_seek = handle->fh_seek + *ret;
     }
 
+    lock_release(handle->fh_lock);
+
     return errno;    
 }
 
@@ -45,6 +123,8 @@ int _fh_write(struct fh* handle, const void* buf, size_t nbytes, int* ret){
     struct iovec iov;
     iov.iov_ubase = (userptr_t)buf;
     iov.iov_len = nbytes;
+
+    lock_acquire(handle->fh_lock);
 
     uio.uio_iov = &iov;
     uio.uio_iovcnt = 1;
@@ -61,41 +141,36 @@ int _fh_write(struct fh* handle, const void* buf, size_t nbytes, int* ret){
         handle->fh_seek = handle->fh_seek + *ret;
     }
 
+    lock_release(handle->fh_lock);
+
     return errno;
-}
-
-
-/* Create and add a file handle to the process file handler table */
-struct fh *  _fh_add(int flag, struct vnode **file, struct fharray *fhs, int* errno){
-    uint32_t fd = _fh_allotfd(fhs);
-    if(fd == MAX_FD){
-        *errno = EMFILE;
-        return NULL;
-    }
-    KASSERT(fharray_get(fhs,fd) == NULL);
-
-    struct fh *handle = (struct fh *)kmalloc(sizeof(struct fh *));
-    int ret = _fh_create(flag,file,handle);
-    if(ret != 0){
-        *errno = ret;
-        return NULL;
-    }
-
-    handle->fd = fd;
-    fharray_set(fhs,fd,handle);
-
-    return 0;
 }
 
 /* Remove the file handle from the file handler table */
 void _fhs_close(int fd, struct fharray *fhs){
     KASSERT(fhs != NULL);
     KASSERT(fd >= 0 && fd < MAX_FD);
-   
-	/* Deallocate this piece of memmory since 
-	file handles are created from the heap */
-	kfree(fharray_get(fhs,fd)); 
-    fharray_set(fhs, fd, NULL);
+
+    struct fh *handle = fharray_get(fhs,fd);
+
+    lock_acquire(handle->fh_lock);
+
+    /* Decrement the reference counter */
+    handle->refs = handle->refs - 1;
+
+    /* Close the handler if the refs drops to 0 */
+    if(handle->refs == 0){
+        lock_release(handle->fh_lock);
+        vfs_close(handle->fh_vnode);
+        lock_destroy(handle->fh_lock);
+        kfree(handle->filename);
+        kfree(handle);
+    }else{
+        lock_release(handle->fh_lock);
+    }
+
+    fharray_set(handle,fd,NULL);
+
     KASSERT(fharray_get(fhs,fd) == NULL);
 }
 
@@ -113,53 +188,88 @@ int _fh_bootstrap(struct fharray *fhs){
     /* Return variable */
     int ret = 0;
 
-	/* Initialize the console files STDIN, STDOUT and STDERR */
-	struct vnode **stdin = kmalloc(sizeof(struct vnode *));
+    /*************************** STDIN *****************************/
+    struct fh *stdinfh = kmalloc(sizeof(struct fh));
+    stdinfh->filename = kstrdup(console_inp);
+    
+    struct vnode **stdin = kmalloc(sizeof(struct vnode *));
 	ret = vfs_open(console_inp,O_RDONLY,0,stdin);
     if(ret != 0){
+        kfree(stdin);
+        kfree(stdinfh);
         return ret;
     }
 	kfree(console_inp);
 
-	struct fh *stdinfh = kmalloc(sizeof(struct fh));
-    ret =  _fh_create(O_RDONLY,stdin,stdinfh);
-    if(ret != 0){
-        return ret;
+    stdinfh->fh_lock = lock_create(stdinfh->filename);
+    if(stdinfh->fh_lock == NULL){
+        kfree(stdin);
+        kfree(stdinfh);         
+        return ERR;
     }
 
-	stdinfh->fd = STDIN_FILENO;
+    stdinfh->flag = O_RDONLY;
+    stdinfh->fh_seek = 0;
+    stdinfh->refs = 1;
+    stdinfh->fh_vnode = stdin;
+    stdinfh->fd = STDIN_FILENO;
+
 	fharray_add(fhs,stdinfh,NULL);
 
-	struct vnode **stdout = kmalloc(sizeof(struct vnode *));
+    /*************************** STDOUT *****************************/
+    struct fh *stdoutfh = kmalloc(sizeof(struct fh));
+    stdoutfh->filename = kstrdup(console_out);
+    
+    struct vnode **stdout = kmalloc(sizeof(struct vnode *));
 	ret = vfs_open(console_out,O_WRONLY,0,stdout);
-	if(ret != 0){
+    if(ret != 0){
+        kfree(stdout);
+        kfree(stdoutfh);
         return ret;
     }
 	kfree(console_out);
 
-	struct fh *stdoutfh = kmalloc(sizeof(struct fh));
-    ret =  _fh_create(O_WRONLY,stdout,stdoutfh);
-    if(ret != 0){
-        return ret;
+    stdoutfh->fh_lock = lock_create(stdoutfh->filename);
+    if(stdoutfh->fh_lock == NULL){
+        kfree(stdout);
+        kfree(stdoutfh);         
+        return ERR;
     }
 
-	stdoutfh->fd = STDOUT_FILENO;
+    stdoutfh->flag = O_WRONLY;
+    stdoutfh->fh_seek = 0;
+    stdoutfh->refs = 1;
+    stdoutfh->fh_vnode = stdout;
+    stdoutfh->fd = STDOUT_FILENO;
+
 	fharray_add(fhs,stdoutfh,NULL);
 
-	struct vnode **stderr = kmalloc(sizeof(struct vnode *));
+    /*************************** STDERR *****************************/
+    struct fh *stderrfh = kmalloc(sizeof(struct fh));
+    stderrfh->filename = kstrdup(console_err);
+    
+    struct vnode **stderr = kmalloc(sizeof(struct vnode *));
 	ret = vfs_open(console_err,O_WRONLY,0,stderr);
-	if(ret != 0){
+    if(ret != 0){
+        kfree(stderr);
+        kfree(stderrfh);
         return ret;
     }
 	kfree(console_err);
 
-	struct fh *stderrfh = kmalloc(sizeof(struct fh));
-    ret =  _fh_create(O_WRONLY,stderr,stderrfh);
-    if(ret != 0){
-        return ret;
+    stderrfh->fh_lock = lock_create(stderrfh->filename);
+    if(stderrfh->fh_lock == NULL){
+        kfree(stderr);
+        kfree(stderrfh);         
+        return ERR;
     }
 
-	stderrfh->fd = STDERR_FILENO;
+    stderrfh->flag = O_WRONLY;
+    stderrfh->fh_seek = 0;
+    stderrfh->refs = 1;
+    stderrfh->fh_vnode = stderr;
+    stderrfh->fd = STDERR_FILENO;
+
 	fharray_add(fhs,stderrfh,NULL);
 
     fharray_setsize(fhs,MAX_FD);	
@@ -177,29 +287,11 @@ struct fh * _get_fh(int fd, struct fharray* fhs){
     return fharray_get(fhs,fd);
 }
 
-/* Create a file handle */
-static int _fh_create(int flag, struct vnode **file, struct fh *handle){
-
-    KASSERT(file != NULL);
-
-    /* W , R , RW */
-	if ( 
-		((flag & O_RDONLY) && (flag & O_WRONLY)) ||
-		((flag & O_RDWR) && ((flag & O_RDONLY) || (flag & O_WRONLY)))
-	) {
-        handle = NULL;
-		return 1;
-	}
-
-    handle->flag = flag;
-    handle->fh_seek = 0;
-    handle->fh_vnode = file;
-
-    return 0;
-}
-
 static 
 int _fh_allotfd(struct fharray *fhs){
+
+    KASSERT(fhs != NULL);
+
     int idx = 3;
     for(idx = 3;idx < MAX_FD; idx++){
         if(fharray_get(fhs,idx) == NULL){

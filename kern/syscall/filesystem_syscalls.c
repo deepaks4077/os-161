@@ -10,7 +10,31 @@
 #include <uio.h>
 #include <spinlock.h>
 
-int sys_read(int fd, const void *buf, size_t nbytes, int* errno){
+int sys_open(struct fharray *pfhs, userptr_t path, int flags, int* retval){
+
+    int err = 0;
+
+    char* file = kmalloc(__PATH_MAX);
+    
+    err = copyinstr(path,file,__PATH_MAX,NULL);
+    if(err){
+        kfree(file);
+        return err;
+    }
+
+    err = _fh_open(pfhs,file,flags,retval);
+    if(err){
+        kfree(file);
+        return err;
+    }
+    kfree(file);
+
+    // the file descriptor is in retval
+    return SUCC;
+}
+
+
+int sys_read(int fd, const void *buf, size_t nbytes, int* retval){
 
     KASSERT(buf != NULL);
 
@@ -19,26 +43,23 @@ int sys_read(int fd, const void *buf, size_t nbytes, int* errno){
     ret = copyin((const_userptr_t)buf,desc,1);
     kfree(desc);
     if(ret != 0){
-        *errno = EFAULT;
         return ret;
     }
 
     struct fh *handle = _get_fh(fd,&curproc->p_fhs);
     if(handle == NULL){
-        *errno = EBADF;
-        return 1;
+        return EBADF;
     }
 
     if(handle->flag && O_WRONLY){
-        *errno = EBADF;
-        return 1;
+        return EBADF;
     }
 
     return _fh_read(handle,buf,nbytes,errno);
 }
 
 
-int sys_write(int fd, const void *buf, size_t nbytes, int* errno){
+int sys_write(int fd, const void *buf, size_t nbytes, int* retval){
 
     KASSERT(buf != NULL);
 
@@ -47,19 +68,16 @@ int sys_write(int fd, const void *buf, size_t nbytes, int* errno){
     ret = copyin((const_userptr_t)buf,desc,1);
     kfree(desc);
     if(ret != 0){
-        *errno = EFAULT;
         return ret;
     }
 
     struct fh *handle = _get_fh(fd,&curproc->p_fhs);
     if(handle == NULL){
-        *errno = EBADF;
-        return 1;
+        return EBADF;
     }
 
     if(handle->flag && O_RDONLY){
-        *errno = EBADF;
-        return 1;
+        return EBAF;
     }
 
     return _fh_write(handle,buf,nbytes,errno);

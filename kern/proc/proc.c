@@ -268,6 +268,14 @@ proc_destroy(struct proc *proc)
 		kfree(tmp->fh_vnode);
 	}
 
+	/* The file handler filenames need to be deallocated before the file handler array*/
+	idx = 0;
+	struct fh *tmp;
+	for(idx = 0;idx<2;idx++){
+		tmp = fharray_get(&proc->p_fhs,idx);	
+		kfree(tmp->filename);
+	}
+
 	/* All elements inside p_fhs need to be deallocated */
 	idx = 0;
 	for(idx=0;idx<(int)fharray_num(&proc->p_fhs);idx++){

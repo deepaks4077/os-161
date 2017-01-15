@@ -196,5 +196,7 @@ void kprintf_bootstrap(void);
 #define DIVROUNDUP(a,b) (((a)+(b)-1)/(b))
 #define ROUNDUP(a,b)    (DIVROUNDUP(a,b)*b)
 
+#define ERR 1
+#define SUCC 0
 
 #endif /* _LIB_H_ */
