@@ -83,3 +83,15 @@ int sys_write(int fd, const void *buf, size_t nbytes, int* retval){
 
     return _fh_write(handle,buf,nbytes,retval);
 }
+
+int sys_close(struct fharray *pfhs, int fd){
+
+    // validate fd
+    if(fd < 0 && fd >= MAX_FD){
+        return EBADF;
+    }
+
+    _fhs_close(fd, pfhs);
+
+    return SUCC;
+}

@@ -66,5 +66,6 @@ void sys_exit(void);
 int sys_open(struct fharray *pfhs, userptr_t path, int flags, int* retval);
 int sys_write(int fd, const void *buf, size_t nbytes, int* errno);
 int sys_read(int fd, const void *buf, size_t nbytes, int* retval);
+int sys_close(struct fharray *pfhs, int fd);
 
 #endif /* _SYSCALL_H_ */
