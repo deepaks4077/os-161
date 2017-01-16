@@ -8,6 +8,7 @@
 #include <current.h>
 #include <copyinout.h>
 #include <uio.h>
+#include <vfs.h>
 #include <spinlock.h>
 #include <limits.h>
 
@@ -95,3 +96,39 @@ int sys_close(struct fharray *pfhs, int fd){
 
     return SUCC;
 }
+
+int sys__getcwd(userptr_t buf, size_t nbytes, int* retval){
+    
+    KASSERT(buf != NULL);
+
+    int ret;
+    void* desc = kmalloc(1);
+    ret = copyout((const void *)desc,buf,1);
+    kfree(desc);
+    if(ret){
+        return ret;
+    }
+
+    struct uio uio;
+    struct iovec iov;
+    iov.iov_ubase = (userptr_t)buf;
+    iov.iov_len = nbytes;
+
+    uio.uio_iov = &iov;
+    uio.uio_iovcnt = 1;
+    uio.uio_offset = 0;
+    uio.uio_resid = nbytes;
+    uio.uio_segflg = UIO_USERSPACE;
+    uio.uio_rw = UIO_READ;
+    uio.uio_space = proc_getas();
+
+    ret = vfs_getcwd(&uio);
+    if(ret){
+        return ret;
+    }
+
+    *retval = (int)(nbytes - uio.uio_resid);
+    
+    return SUCC;
+}
+

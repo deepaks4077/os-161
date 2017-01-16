@@ -100,7 +100,7 @@ struct proc {
 	/* File system related data */
 
 	// open files
-	// list of file descriptors
+	// list of file handlers
 	struct fharray p_fhs;
 };
 
