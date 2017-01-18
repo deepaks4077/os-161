@@ -143,5 +143,5 @@ int sys_lseek(int fd, off_t pos, int whence, off_t* retval){
 }
 
 int sys_dup2(int oldfd, int newfd, int* retval){
-    return _fh_dup2(oldfd, newfd, retval);
+    return _fh_dup2(oldfd, newfd, &curproc->p_fhs, retval);
 }

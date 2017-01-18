@@ -224,9 +224,9 @@ int _fh_lseek(struct fh* handle, off_t pos, int whence, off_t* res){
     return SUCC;
 }
 
-int _fh_dup2(int oldfd, int newfd, int* retval){
+int _fh_dup2(int oldfd, int newfd, struct fharray* fhs, int* retval){
 
-    struct fh* oldhandle = _get_fh(oldfd,&curproc->p_fhs);
+    struct fh* oldhandle = _get_fh(oldfd, fhs);
 
     if(oldhandle == NULL){
         return EBADF;
@@ -241,16 +241,16 @@ int _fh_dup2(int oldfd, int newfd, int* retval){
         return SUCC;
     }
 
-    struct fh* newhandle = _get_fh(newfd,&curproc->p_fhs);
+    struct fh* newhandle = _get_fh(newfd, fhs);
 
     if(newhandle != NULL){
-        _fhs_close(newfd,&curproc->p_fhs);
+        _fhs_close(newfd, fhs);
     }
 
     lock_acquire(oldhandle->fh_lock);
 
     oldhandle->refs = oldhandle->refs + 1;
-    fharray_set(&curproc->p_fhs,newfd,oldhandle);
+    fharray_set(fhs,newfd,oldhandle);
 
     *retval = newfd;
 

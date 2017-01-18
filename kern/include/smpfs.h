@@ -32,7 +32,7 @@ int _fh_write(struct fh* handle, const void *buf, size_t nbytes, int* ret);
 int _fh_read(struct fh* handle, const void *buf, size_t nbytes, int* ret);
 int _fh_lseek(struct fh* handle, off_t pos, int whence, off_t* res);
 void _fhs_close(int fd, struct fharray *fhs);
-int _fh_dup2(int oldfd, int newfd, int* retval);
+int _fh_dup2(int oldfd, int newfd, struct fharray* fhs, int* retval);
 int _fh_bootstrap(struct fharray *fhs);
 
 #endif /*_FILEHANDLER_H_*/
