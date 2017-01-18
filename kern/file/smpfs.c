@@ -8,6 +8,7 @@
 #include <smpfs.h>
 #include <vnode.h>
 #include <vfs.h>
+#include <kern/seek.h>
 #include <kern/iovec.h>
 
 static int _fh_allotfd(struct fharray *fhs);
@@ -191,7 +192,7 @@ int _fh_lseek(struct fh* handle, off_t pos, int whence, off_t* res){
             *res = pos;
         break;
         
-        case SEEK_END:
+        case SEEK_END: ;
             /* Get end of file */
             struct stat filestats;
             VOP_STAT(*handle->fh_vnode, &filestats);
@@ -202,8 +203,8 @@ int _fh_lseek(struct fh* handle, off_t pos, int whence, off_t* res){
             *res = handle->fh_seek + pos;
         break;
         
-        case default:
-        return EINVAL;
+        default:
+        	return EINVAL;
     }
 
     if(*res < 0){
