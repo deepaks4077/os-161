@@ -68,5 +68,6 @@ int sys_write(int fd, const void *buf, size_t nbytes, int* errno);
 int sys_read(int fd, const void *buf, size_t nbytes, int* retval);
 int sys_close(struct fharray *pfhs, int fd);
 int sys__getcwd(char* buf, int nbytes, int* retval);
+int sys_lseek(int fd, off_t pos, int whence, off_t* retval);
 
 #endif /* _SYSCALL_H_ */

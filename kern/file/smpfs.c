@@ -174,6 +174,50 @@ void _fhs_close(int fd, struct fharray *fhs){
     KASSERT(fharray_get(fhs,fd) == NULL);
 }
 
+int _fh_lseek(struct fh* handle, off_t pos, int whence, off_t* res){
+    KASSERT(handle != NULL);
+
+    lock_acquire(handle->fh_lock);
+    
+    int ret = 0;
+    ret = VOP_ISSEEKABLE(*handle->fh_vnode);
+
+    if(ret){
+        return ESPIPE;
+    }
+
+    switch(whence){
+        case SEEK_SET:
+            *res = pos;
+        break;
+        
+        case SEEK_END:
+            /* Get end of file */
+            struct stat filestats;
+            VOP_STAT(*handle->fh_vnode, &filestats);
+            *res = filestats.st_size + pos;
+        break;
+        
+        case SEEK_CUR:
+            *res = handle->fh_seek + pos;
+        break;
+        
+        case default:
+        return EINVAL;
+    }
+
+    if(*res < 0){
+        lock_release(handle->fh_lock);
+        return EINVAL;
+    }else{
+        handle->fh_seek = *res;
+    }
+
+    lock_release(handle->fh_lock);
+
+    return SUCC;
+}
+
 /* Bootstrap the file handler table by initializing it and adding console file handles */
 int _fh_bootstrap(struct fharray *fhs){
 

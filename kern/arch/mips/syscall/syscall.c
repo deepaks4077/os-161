@@ -161,14 +161,36 @@ syscall(struct trapframe *tf)
 						&retval
 					);
 		break;
-		// case SYS_waitpid:
-		// err = sys_waitpid(
-		// 					(pid_t)tf->tf_a0,
-		// 					(userptr_t)tf->tf_a1,
-		// 					(int)tf->tf_a2),
-		// 					&retval
-		// 				);
-		// break;
+
+		case SYS_lseek:{
+			uint32_t higher = tf->tf_a2;
+			uint32_t lower = tf->tf_a3;
+
+			off_t pos = (uint64_t)higher<<32 | lower;
+
+			const_userptr_t whence_addr = (const_userptr_t)tf->tf_sp + 16;
+			
+			int lower_return;
+			int whence;
+			off_t* retval_64;
+
+			err = copyin(whence_addr,&whence,sizeof(int));
+			if(err == 0){
+				// call lseek
+				// fd is in tf_a0
+				err = sys_lseek(
+								(int)tf->tf_a0,
+								pos,
+								whence,
+								retval_64
+							);
+				tf->tf_v1 = (uint32_t)retval_64;
+				retval = (uint32_t)(retval_64>>32); 
+			}
+
+			break;
+		}
+
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;

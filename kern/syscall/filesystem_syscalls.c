@@ -132,3 +132,12 @@ int sys__getcwd(userptr_t buf, size_t nbytes, int* retval){
     return SUCC;
 }
 
+int sys_lseek(int fd, off_t pos, int whence, off_t* retval){
+    
+    struct fh *handle = _get_fh(fd,&curproc->p_fhs);
+    if(handle == NULL){
+        return EBADF;
+    }
+
+    return _fh_lseek(handle,pos,whence,retval);
+}

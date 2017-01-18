@@ -30,6 +30,7 @@ struct fh * _get_fh(int fd, struct fharray* fhs);
 int _fh_open(struct fharray *handlers, char* path, int flags, int* ret);
 int _fh_write(struct fh* handle, const void *buf, size_t nbytes, int* ret);
 int _fh_read(struct fh* handle, const void *buf, size_t nbytes, int* ret);
+int _fh_lseek(struct fh* handle, off_t pos, int whence, off_t* res);
 void _fhs_close(int fd, struct fharray *fhs);
 int _fh_bootstrap(struct fharray *fhs);
 
