@@ -141,3 +141,7 @@ int sys_lseek(int fd, off_t pos, int whence, off_t* retval){
 
     return _fh_lseek(handle,pos,whence,retval);
 }
+
+int sys_dup2(int oldfd, int newfd, int* retval){
+    return _fh_dup2(oldfd, newfd, retval);
+}

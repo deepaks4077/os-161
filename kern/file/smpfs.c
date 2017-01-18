@@ -162,6 +162,7 @@ void _fhs_close(int fd, struct fharray *fhs){
     if(handle->refs == 0){
         lock_release(handle->fh_lock);
         vfs_close(*handle->fh_vnode);
+        kfree(handle->fh_vnode);
         lock_destroy(handle->fh_lock);
         kfree(handle->filename);
         kfree(handle);
@@ -214,6 +215,41 @@ int _fh_lseek(struct fh* handle, off_t pos, int whence, off_t* res){
     }
 
     lock_release(handle->fh_lock);
+
+    return SUCC;
+}
+
+int _fh_dup2(int oldfd, int newfd, int* retval){
+
+    struct fh* oldhandle = _get_fh(oldfd,&curproc->p_fhs);
+
+    if(oldhandle == NULL){
+        return EBADF;
+    }
+
+    if(newfd < 0 || newfd >= MAX_FD){
+        return EBADF;
+    }
+
+    if(oldfd == newfd){
+        *retval = oldfd;
+        return SUCC;
+    }
+
+    struct fh* newhandle = _get_fh(newfd,&curproc->p_fhs);
+
+    if(newhandle != NULL){
+        _fhs_close(newfd,&curproc->p_fhs);
+    }
+
+    lock_acquire(oldhandle->fh_lock);
+
+    oldhandle->refs = oldhandle->refs + 1;
+    fharray_set(&curproc->p_fhs,newfd,oldhandle);
+
+    *retval = newfd;
+
+    lock_release(oldhandle->fh_lock);
 
     return SUCC;
 }
