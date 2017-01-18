@@ -154,6 +154,10 @@ void _fhs_close(int fd, struct fharray *fhs){
 
     struct fh *handle = fharray_get(fhs,fd);
 
+	if(handle == NULL){
+		return;
+	}
+
     lock_acquire(handle->fh_lock);
 
     /* Decrement the reference counter */
@@ -164,6 +168,7 @@ void _fhs_close(int fd, struct fharray *fhs){
         lock_release(handle->fh_lock);
         vfs_close(*handle->fh_vnode);
         lock_destroy(handle->fh_lock);
+		kfree(handle->fh_vnode);
         kfree(handle->filename);
         kfree(handle);
     }else{

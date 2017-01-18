@@ -259,26 +259,10 @@ proc_destroy(struct proc *proc)
 	numprocs--;
 	spinlock_release(&sp_numprocs);
 
-
-	/* The console vnodes need to be deallocated before the file handler array*/
-	int idx = 0;
-	struct fh *tmp;
-	for(idx = 0;idx<2;idx++){
-		tmp = fharray_get(&proc->p_fhs,idx);	
-		kfree(tmp->fh_vnode);
-	}
-
-	/* The file handler filenames need to be deallocated before the file handler array*/
-	idx = 0;
-	for(idx = 0;idx<2;idx++){
-		tmp = fharray_get(&proc->p_fhs,idx);	
-		kfree(tmp->filename);
-	}
-
 	/* All elements inside p_fhs need to be deallocated */
-	idx = 0;
+	int idx = 0;
 	for(idx=0;idx<(int)fharray_num(&proc->p_fhs);idx++){
-		kfree(fharray_get(&proc->p_fhs,idx));
+		_fhs_close(idx,&proc->p_fhs);
 	}
 
 	/* Cleanup the associated file handles array */
