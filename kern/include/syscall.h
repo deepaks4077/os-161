@@ -67,6 +67,6 @@ int sys_open(struct fharray *pfhs, userptr_t path, int flags, int* retval);
 int sys_write(int fd, const void *buf, size_t nbytes, int* errno);
 int sys_read(int fd, const void *buf, size_t nbytes, int* retval);
 int sys_close(struct fharray *pfhs, int fd);
-int sys__getcwd(char* buf, int nbytes, int* retval);
+int sys__getcwd(userptr_t buf, size_t nbytes, int* retval);
 
 #endif /* _SYSCALL_H_ */
