@@ -53,7 +53,7 @@ int sys_read(int fd, const void *buf, size_t nbytes, int* retval){
         return EBADF;
     }
 
-    if(handle->flag && O_WRONLY){
+    if(handle->flag & O_WRONLY){
         return EBADF;
     }
 
@@ -78,7 +78,7 @@ int sys_write(int fd, const void *buf, size_t nbytes, int* retval){
         return EBADF;
     }
 
-    if(handle->flag && O_RDONLY){
+    if(handle->flag & O_RDONLY){
         return EBADF;
     }
 

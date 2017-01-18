@@ -180,10 +180,9 @@ int _fh_lseek(struct fh* handle, off_t pos, int whence, off_t* res){
 
     lock_acquire(handle->fh_lock);
     
-    int ret = 0;
-    ret = VOP_ISSEEKABLE(*handle->fh_vnode);
+    bool seekable = VOP_ISSEEKABLE(*handle->fh_vnode);
 
-    if(ret){
+    if(!seekable){
         return ESPIPE;
     }
 

@@ -35,7 +35,7 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
-
+#include <copyinout.h>
 
 /*
  * System call dispatcher.
@@ -170,9 +170,8 @@ syscall(struct trapframe *tf)
 
 			const_userptr_t whence_addr = (const_userptr_t)tf->tf_sp + 16;
 			
-			int lower_return;
 			int whence;
-			off_t* retval_64;
+			off_t* retval_64 = kmalloc(sizeof(off_t));
 
 			err = copyin(whence_addr,&whence,sizeof(int));
 			if(err == 0){
@@ -184,9 +183,11 @@ syscall(struct trapframe *tf)
 								whence,
 								retval_64
 							);
-				tf->tf_v1 = (uint32_t)retval_64;
-				retval = (uint32_t)(retval_64>>32); 
+				tf->tf_v1 = (uint32_t)*retval_64;
+				retval = (uint32_t)(*retval_64>>32);
 			}
+
+			kfree(retval_64);
 
 			break;
 		}
