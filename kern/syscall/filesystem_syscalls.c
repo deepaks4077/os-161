@@ -145,3 +145,22 @@ int sys_lseek(int fd, off_t pos, int whence, off_t* retval){
 int sys_dup2(int oldfd, int newfd, int* retval){
     return _fh_dup2(oldfd, newfd, &curproc->p_fhs, retval);
 }
+
+int sys_chdir(const_userptr_t userpath){
+    
+    char* pathname = kmalloc(__PATH_MAX);
+
+    int ret;
+    void* dest = kmalloc(1);
+    ret = copyin(pathname,dest,1);
+    kfree(dest);
+    if(ret){
+        return ret;
+    }
+
+    ret = vfs_chdir(pathname);
+
+    kfree(pathname)
+
+    return ret;
+}
