@@ -38,12 +38,10 @@ int sys_open(struct fharray *pfhs, userptr_t path, int flags, int* retval){
 
 int sys_read(int fd, const void *buf, size_t nbytes, int* retval){
 
-    KASSERT(buf != NULL);
-
     int ret;
-    void* desc = kmalloc(1);
-    ret = copyin((const_userptr_t)buf,desc,1);
-    kfree(desc);
+    void* dest = kmalloc(1);
+    ret = copyin((const_userptr_t)buf,dest,1);
+    kfree(dest);
     if(ret != 0){
         return ret;
     }
@@ -63,12 +61,10 @@ int sys_read(int fd, const void *buf, size_t nbytes, int* retval){
 
 int sys_write(int fd, const void *buf, size_t nbytes, int* retval){
 
-    KASSERT(buf != NULL);
-
     int ret;
-    void* desc = kmalloc(1);
-    ret = copyin((const_userptr_t)buf,desc,1);
-    kfree(desc);
+    void* dest = kmalloc(1);
+    ret = copyin((const_userptr_t)buf,dest,1);
+    kfree(dest);
     if(ret != 0){
         return ret;
     }
@@ -151,16 +147,15 @@ int sys_chdir(const_userptr_t userpath){
     char* pathname = kmalloc(__PATH_MAX);
 
     int ret;
-    void* dest = kmalloc(1);
-    ret = copyin(pathname,dest,1);
-    kfree(dest);
+    ret = copyinstr(userpath,pathname,__PATH_MAX,NULL);
     if(ret){
+		kfree(pathname);
         return ret;
     }
 
     ret = vfs_chdir(pathname);
 
-    kfree(pathname)
+    kfree(pathname);
 
     return ret;
 }
