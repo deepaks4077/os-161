@@ -12,7 +12,7 @@ DEFARRAY(proc,static __UNUSED inline);
 typedef struct p_table{
 	pid_t limit;
 	int num;
-	struct lock *lock;
+	struct spinlock *lock;
 	struct procarray *allprocs;
 } p_table;
 
@@ -28,7 +28,7 @@ int proctable_init(int SYS_PROC_LIMIT){
 	process_t->limit = SYS_PROC_LIMIT;
 	process_t->num = 0;
 
-	process_t->lock = lock_create("SYSTEM");
+	spinlock_init(process_t->lock);
 	if(process_t->lock == NULL){
 		kfree(process_t);
 		return ERROR;
@@ -57,7 +57,7 @@ pid_t proctable_add(struct proc* proc){
 		return ERROR;
 	}
 
-	lock_acquire(process_t->lock);
+	spinlock_acquire(process_t->lock);
 
 	pid_t newpid = proctable_getpid();
 	if(newpid == ERROR){
@@ -68,7 +68,7 @@ pid_t proctable_add(struct proc* proc){
 
 	process_t->num = process_t->num + 1; 
 
-	lock_release(process_t->lock);
+	spinlock_release(process_t->lock);
 
 	return newpid;
 }
@@ -79,13 +79,13 @@ pid_t proctable_add(struct proc* proc){
 void proctable_remove(pid_t pid){
 
 	// Obtain lock first
-	lock_acquire(process_t->lock);
+	spinlock_acquire(process_t->lock);
 
 	procarray_set(process_t->allprocs, pid, NULL);
 
 	process_t->num = process_t->num - 1;
 
-	lock_release(process_t->lock);
+	spinlock_release(process_t->lock);
 }
 
 /*
