@@ -28,11 +28,12 @@ int proctable_init(int SYS_PROC_LIMIT){
 	process_t->limit = SYS_PROC_LIMIT;
 	process_t->num = 0;
 
-	spinlock_init(process_t->lock);
+	process_t->lock = kmalloc(sizeof(struct spinlock));
 	if(process_t->lock == NULL){
 		kfree(process_t);
 		return ERROR;
 	}
+	spinlock_init(process_t->lock);
 
 	process_t->allprocs = kmalloc(sizeof(struct procarray));
 	if(process_t->allprocs == NULL){
@@ -105,15 +106,15 @@ bool is_proctable_full(void){
 	KASSERT(process_t != NULL);
 	KASSERT(process_t->allprocs != NULL);
 
-	if((int)procarray_num(process_t->allprocs) == process_t->limit){
-		return false;
+	if(process_t->num== process_t->limit){
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 bool is_valid_pid(pid_t pid){
-	return ((pid < 0) || (pid >= process_t->limit)) ? true : false;  
+	return ((pid < 0) || (pid >= process_t->limit)) ? false : true;  
 }
 
 static 
@@ -126,7 +127,7 @@ pid_t proctable_getpid(void){
 	}
 
 	int ret = 0;
-	for(ret = 1;ret < process_t->limit; ret++){
+	for(ret = 0;ret < process_t->limit; ret++){
 		if(procarray_get(process_t->allprocs,ret) == NULL){
 			break;
 		}
