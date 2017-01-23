@@ -84,7 +84,7 @@ int sys_write(int fd, const void *buf, size_t nbytes, int* retval){
 int sys_close(struct fharray *pfhs, int fd){
 
     // validate fd
-    if(fd < 0 && fd >= MAX_FD){
+    if(fd < 0 || fd >= MAX_FD){
         return EBADF;
     }
 
@@ -95,8 +95,6 @@ int sys_close(struct fharray *pfhs, int fd){
 
 int sys__getcwd(userptr_t buf, size_t nbytes, int* retval){
     
-    KASSERT(buf != NULL);
-
     int ret;
     void* desc = kmalloc(1);
     ret = copyout((const void *)desc,buf,1);
