@@ -48,6 +48,7 @@
 #include <lib.h>
 #include <smpfs.h>
 #include <proc.h>
+#include <proctable.h>
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
@@ -60,55 +61,37 @@
 struct proc *kproc;
 
 /*
- * The master array of all processes
- */
- DECLARRAY(proc,static __UNUSED inline);
- DEFARRAY(proc,static __UNUSED inline);
- static struct procarray allprocs;
- static volatile unsigned numprocs;
- static volatile unsigned next_pid;
-
-/* spinlocks used to protect numprocs and allprocs */
- static struct spinlock sp_numprocs;
- static struct spinlock sp_allprocs; // protect allprocs and next_pid
-
-/*
  * Create a proc structure.
  */
 static
 struct proc *
 proc_create(const char *name)
 {
-	spinlock_acquire(&sp_numprocs);
-	if(numprocs >= MAX_PID){
-		spinlock_release(&sp_numprocs);
+
+	if(is_proctable_full()){
 		return NULL;
-	}else{
-		numprocs++;
 	}
-	spinlock_release(&sp_numprocs);
+
+	DEBUG(DB_VFS, "Bootstrapping for process : %s\n", proc->p_name);
 
 	struct proc *proc;
 
 	proc = kmalloc(sizeof(*proc));
 	if (proc == NULL) {
-		spinlock_acquire(&sp_numprocs);
-		numprocs--;
-		spinlock_release(&sp_numprocs);
 		return NULL;
 	}
 
 	proc->p_name = kstrdup(name);
 	if (proc->p_name == NULL) {
 		kfree(proc);
-		spinlock_acquire(&sp_numprocs);
-		numprocs--;
-		spinlock_release(&sp_numprocs);
 		return NULL;
 	}
 
 	proc->p_numthreads = 0;
+	
 	spinlock_init(&proc->p_lock);
+
+	proc->p_state = S_READY;
 
 	/* VM fields */
 	proc->p_addrspace = NULL;
@@ -119,49 +102,43 @@ proc_create(const char *name)
 	/* parent process is NULL by default. Assign the parent inside fork */
 	proc->p_parent = NULL;
 
-	DEBUG(DB_VFS, "Bootstrapping for process : %s\n", proc->p_name);
-
-	/* The kernel process has a pid of 0 and add it to allprocs array */
+	/* Not much to do for the kernel process */
 	if(strcmp(name,KERNELPROC) == 0){
-		KASSERT(numprocs == 1);
-		proc->p_pid = KERNEL_PID;
-		procarray_add(&allprocs,proc,(unsigned int *)&proc->p_pid); // does not need to be protected since no other process exists yet?
-		KASSERT(proc->p_pid == KERNEL_PID);
+		proc->pid = KERNEL_PID;
+		proctable_add(proc);
+		KASSERT(proctable_get(KERNEL_PID) == proc);
 	}else{
 	/* Otherwise, assign the pid from the available pids */
 	/* bootstrap the console file handles */
 
-	/* In main.c the kernel process is bootstrapped before the vfs is bootstrapped,
-		this means that we can't create file handles using _fh_create. Soln => Kernel process
-		does not need these syscalls? */
+		/* 
+			In main.c the kernel process is bootstrapped before the vfs is 
+			bootstrapped, this means that we can't create file handles using _fh_create. 
+			Soln => Kernel process does not need these syscalls?
+		*/
 		int ret = _fh_bootstrap(&proc->p_fhs);
 		if(ret != 0){
+			_fhs_cleanup(&proc->p_fhs);
 			kfree(proc);
-			spinlock_acquire(&sp_numprocs);
-			numprocs--;
-			spinlock_release(&sp_numprocs);
 			return NULL;
 		}
 		
 		if(fharray_get(&proc->p_fhs,0) == NULL || 
 		fharray_get(&proc->p_fhs,1) == NULL || 
 		fharray_get(&proc->p_fhs,2) == NULL ){
-			
+			_fhs_cleanup(&proc->p_fhs);
 			kfree(proc);
-			spinlock_acquire(&sp_numprocs);
-			numprocs--;
-			spinlock_release(&sp_numprocs);
 			return NULL;
 		}
 
-		spinlock_acquire(&sp_allprocs);
+		pid_t newpid = proctable_add(proc);
+		if(newpid == ERROR){
+			_fhs_cleanup(&proc->p_fhs);
+			kfree(proc);
+			return NULL;
+		}
 
-		pid_t newpid = proc_assignpid(proc);
-		proc->p_pid = newpid;
-		procarray_set(&allprocs,newpid,proc);
-		KASSERT(procarray_get(&allprocs,newpid) == proc);
-		
-		spinlock_release(&sp_allprocs);
+		proc->pid = newpid;
 	}
 
 	return proc;
@@ -250,45 +227,29 @@ proc_destroy(struct proc *proc)
 	KASSERT(proc->p_numthreads == 0);
 	spinlock_cleanup(&proc->p_lock);
 
-	//TODO: decrement the number of processes and remove from allprocs
-	spinlock_acquire(&sp_allprocs);
-	procarray_set(&allprocs,proc->p_pid,NULL);
-	spinlock_acquire(&sp_allprocs);
+	/* Cleanup the filehandlers */
+	_fhs_cleanup(&proc->p_fhs);
 
-	spinlock_acquire(&sp_numprocs);
-	numprocs--;
-	spinlock_release(&sp_numprocs);
-
-	/* All elements inside p_fhs need to be deallocated */
-	int idx = 0;
-	for(idx=0;idx<(int)fharray_num(&proc->p_fhs);idx++){
-		_fhs_close(idx,&proc->p_fhs);
-	}
-
-	/* Cleanup the associated file handles array */
-	fharray_cleanup(&proc->p_fhs);
+	/* Remove process from process table. */
+	proctable_remove(proc->pid);
 
 	kfree(proc->p_name);
 	kfree(proc);
 }
 
 /*
- * Create the process structure for the kernel. Initialize the master process array, allprocs
+ * Create the process structure for the kernel. Initialize the process table
  */
 void
 proc_bootstrap(void)
 {
+
+	proctable_init(PID_MAX);
+
 	kproc = proc_create(KERNELPROC);
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
-
-	procarray_init(&allprocs);
-	procarray_setsize(&allprocs,MAX_PID);
-	spinlock_init(&sp_numprocs);
-	spinlock_init(&sp_allprocs);
-	numprocs = 1;
-	next_pid = 1;
 }
 
 /*
@@ -424,44 +385,4 @@ proc_setas(struct addrspace *newas)
 	proc->p_addrspace = newas;
 	spinlock_release(&proc->p_lock);
 	return oldas;
-}
-
-/*
- * Assign an available pid to the process passed as argument
- * Since the pid assigned is incremented for the next process,
- * it is possible that we may reach the end of the pid_t type.
- * In such a case, reset to 0 and assign the smallest unassigned number.
- */
-pid_t // TODO: test this function
-proc_assignpid(struct proc *newproc){
-	// use the value of next_pid, if overflow then set to 0 for the next process.
-	KASSERT(newproc != NULL);
-	
-	// make sure that the number of processes is less than MAX_PID 
-	KASSERT(numprocs < MAX_PID);
-
-	pid_t ret = 0;
-	for(ret = 1;ret < MAX_PID; ret++){
-		if(procarray_get(&allprocs,ret) == NULL){
-			break;
-		}
-	}
-
-	/* proc_create will call this function only when numprocs < MAX_PID */
-	KASSERT(ret != MAX_PID);
-	KASSERT(procarray_get(&allprocs,ret) == NULL);
-
-	return ret;
-}
-
-/*
- * Return the process with process id ppid
- */
-struct proc*
-get_process(pid_t ppid){
-	if(ppid < 0 || ppid >= MAX_PID){
-		return NULL;
-	}
-
-	return procarray_get(&allprocs,ppid);
 }

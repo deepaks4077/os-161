@@ -364,6 +364,16 @@ int _fh_bootstrap(struct fharray *fhs){
 	/* Initialization of stdin, out and err filehandlers complete */
 }
 
+/* Cleanup the file handler array */
+void _fhs_cleanup(struct fharray *pfhs){
+    int idx = 0;
+    for(idx = 0; idx <= MAX_FD; idx++){
+        _fhs_close(idx, pfhs);
+    }
+
+    fharray_cleanup(pfhs);
+}
+
 struct fh * _get_fh(int fd, struct fharray* fhs){
     if(fd < 0 || fd > MAX_FD){
         return NULL;

@@ -30,15 +30,6 @@
 #ifndef _PROC_H_
 #define _PROC_H_
 
-/* The name of the kernel process */
-#define KERNELPROC "[kernel]"
-
-/* The PID of the kernel process */
-#define KERNEL_PID 0
-
-/* MAX PID value */
-#define MAX_PID 512
-
 /*
  * Definition of a process.
  *
@@ -48,6 +39,20 @@
 #include <spinlock.h>
 #include <array.h>
 #include <smpfs.h>
+#include <thread.h>
+#include <limits.h>
+
+/* The name of the kernel process */
+#define KERNELPROC "[kernel]"
+
+/* The PID of the kernel process */
+#define KERNEL_PID 0
+
+/* MAX PID value */
+#define MAX_PID PID_MAX
+
+/* Borrowing state definitions from thread.h */
+#define procstate_t threadstate_t
 
 struct addrspace;
 struct thread;
@@ -71,37 +76,31 @@ struct vnode;
  * without sleeping.
  */
 struct proc {
-	char *p_name;			/* Name of this process */
-	struct spinlock p_lock;		/* Lock for this structure */
-	unsigned p_numthreads;		/* Number of threads in this process */
+	char *p_name;						/* Name of this process */
+	struct spinlock p_lock;				/* Lock for this structure */
+	unsigned p_numthreads;				/* Number of threads in this process */
+	struct procstate_t p_state; 		/* Process state */
 
-	/* VM */
-	struct addrspace *p_addrspace;	/* virtual address space */
-
-	/* VFS */
-	struct vnode *p_cwd;		/* current working directory */
-
-	/* add more material here as needed */
-	
-	/*  The process pid, pid_t is of type _i32,
+	/*  
+		The process pid, pid_t is of type _i32,
 		please check out proc.c for information on how 
 		this id is assigned and recycled.
-	 */
-	pid_t p_pid;
+	*/
+	pid_t pid;
 
-	struct proc *p_parent; /* The parent process, could be NULL */
+	struct addrspace *p_addrspace;		/* virtual address space */
+	struct vnode *p_cwd;				/* current working directory */
+
+	/* File system related data */
+	struct fharray p_fhs;				/* List of file handlers */
+
+	pid_t ppid; 						/* The parent process */
 
 	// TODO: Add the following later:
 	//struct cv *p_cvWait; /* Condition variable to satisfy _exit<->waitpid condition */
 	//struct lock *p_lockWait /* Lock associated with above CV */
 
 	//volatile int p_num_waiting_procs /* Count of processes waiting on this process to exit */
-
-	/* File system related data */
-
-	// open files
-	// list of file handlers
-	struct fharray p_fhs;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
@@ -127,15 +126,5 @@ struct addrspace *proc_getas(void);
 
 /* Change the address space of the current process, and return the old one. */
 struct addrspace *proc_setas(struct addrspace *);
-
-/* Assign pids to new processes
- * Assuming that the number of processes will not exceed MAX_PID 
- */
-pid_t proc_assignpid(struct proc *);
-
-/* Get the process with pid ppid 
- * Return an erro if no such pid exists
- */
-struct proc* get_process(pid_t);
 
 #endif /* _PROC_H_ */

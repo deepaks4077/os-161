@@ -12,7 +12,7 @@
  * get process id of the current process
  */
 pid_t sys_getpid(struct proc *curprocess){
-    return curprocess->p_pid;
+    return curprocess->pid;
 }
 
 void sys_exit(){
@@ -24,6 +24,22 @@ void sys_exit(){
     thread_exit();
     proc_destroy(current_proc); 
 }
+
+// create a new process
+// copy:
+//      name
+//      numthreads
+//      state
+//      address space
+//      p_cwd
+//      file handler array
+//      fork thread
+//      
+int sys_fork(struct trapframe *tf, struct proc* parent, int* retval){
+    
+}
+
+
 
 /*
 pid_t sys_waitpid(pid_t chpid, userptr_t status, int option, int *retval){
