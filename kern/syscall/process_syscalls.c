@@ -35,9 +35,9 @@ void sys_exit(){
 //      file handler array
 //      fork thread
 //      
-int sys_fork(struct trapframe *tf, struct proc* parent, int* retval){
+//int sys_fork(struct trapframe *tf, struct proc* parent, int* retval){
     
-}
+//}
 
 
 

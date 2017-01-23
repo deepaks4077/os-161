@@ -34,5 +34,6 @@ int _fh_lseek(struct fh* handle, off_t pos, int whence, off_t* res);
 void _fhs_close(int fd, struct fharray *fhs);
 int _fh_dup2(int oldfd, int newfd, struct fharray* fhs, int* retval);
 int _fh_bootstrap(struct fharray *fhs);
+void _fhs_cleanup(struct fharray *pfhs);
 
 #endif /*_FILEHANDLER_H_*/

@@ -1,3 +1,4 @@
+#include <types.h>
 #include <proctable.h>
 
 static pid_t proctable_getpid(void);
@@ -8,23 +9,37 @@ static pid_t proctable_getpid(void);
 DECLARRAY(proc,static __UNUSED inline);
 DEFARRAY(proc,static __UNUSED inline);
 
-static typedef struct p_table{
-	uint32_t limit;
-	uint32_t num;
+typedef struct p_table{
+	pid_t limit;
+	int num;
 	struct lock *lock;
 	struct procarray *allprocs;
-} *process_t;
+} p_table;
 
-int proctable_init(uint32_t SYS_PROC_LIMIT){
+static p_table *process_t;
 
-	process_t->limit = SYS_PROC_LIMIT;
-	process_t->lock = lock_create("SYSTEM");
+int proctable_init(int SYS_PROC_LIMIT){
 
-	if(process_t->lock == NULL){
+	process_t = kmalloc(sizeof(p_table));
+	if(process_t == NULL){
 		return ERROR;
 	}
 
+	process_t->limit = SYS_PROC_LIMIT;
 	process_t->num = 0;
+
+	process_t->lock = lock_create("SYSTEM");
+	if(process_t->lock == NULL){
+		kfree(process_t);
+		return ERROR;
+	}
+
+	process_t->allprocs = kmalloc(sizeof(struct procarray));
+	if(process_t->allprocs == NULL){
+		kfree(process_t->lock);
+		kfree(process_t);
+		return ERROR;
+	}
 	procarray_init(process_t->allprocs);
 	procarray_setsize(process_t->allprocs,SYS_PROC_LIMIT);
 
@@ -42,7 +57,7 @@ pid_t proctable_add(struct proc* proc){
 		return ERROR;
 	}
 
-	lock_acquire(process_t->t_lock);
+	lock_acquire(process_t->lock);
 
 	pid_t newpid = proctable_getpid();
 	if(newpid == ERROR){
@@ -66,7 +81,7 @@ void proctable_remove(pid_t pid){
 	// Obtain lock first
 	lock_acquire(process_t->lock);
 
-	procarray_set(process_t->allprocs, newpid, NULL);
+	procarray_set(process_t->allprocs, pid, NULL);
 
 	process_t->num = process_t->num - 1;
 
@@ -90,7 +105,7 @@ bool is_proctable_full(void){
 	KASSERT(process_t != NULL);
 	KASSERT(process_t->allprocs != NULL);
 
-	if(procarray_num(process_t->allprocs) == process_t->max){
+	if((int)procarray_num(process_t->allprocs) == process_t->limit){
 		return false;
 	}
 
@@ -98,20 +113,20 @@ bool is_proctable_full(void){
 }
 
 bool is_valid_pid(pid_t pid){
-	return ((pid < 0) || (pid >= process_t->max)) ? true : false;  
+	return ((pid < 0) || (pid >= process_t->limit)) ? true : false;  
 }
 
 static 
 pid_t proctable_getpid(void){
 	
 	// re-check the number of processes
-	KASSERT(process_t->num <= process_t->num); 
-	if(process_t->num == process_t->num){
+	KASSERT(process_t->num <= process_t->limit); 
+	if(process_t->num == process_t->limit){
 		return ERROR;
 	}
 
-	pid_t ret = 0;
-	for(ret = 1;ret < process_t->num; ret++){
+	int ret = 0;
+	for(ret = 1;ret < process_t->limit; ret++){
 		if(procarray_get(process_t->allprocs,ret) == NULL){
 			break;
 		}

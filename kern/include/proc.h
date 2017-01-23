@@ -79,7 +79,7 @@ struct proc {
 	char *p_name;						/* Name of this process */
 	struct spinlock p_lock;				/* Lock for this structure */
 	unsigned p_numthreads;				/* Number of threads in this process */
-	struct procstate_t p_state; 		/* Process state */
+	procstate_t p_state; 				/* Process state */
 
 	/*  
 		The process pid, pid_t is of type _i32,

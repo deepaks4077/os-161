@@ -72,9 +72,9 @@ proc_create(const char *name)
 		return NULL;
 	}
 
-	DEBUG(DB_VFS, "Bootstrapping for process : %s\n", proc->p_name);
-
 	struct proc *proc;
+
+	DEBUG(DB_VFS, "Bootstrapping for process : %s\n", name);
 
 	proc = kmalloc(sizeof(*proc));
 	if (proc == NULL) {
@@ -99,8 +99,8 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
-	/* parent process is NULL by default. Assign the parent inside fork */
-	proc->p_parent = NULL;
+	/* parent process is KERNELPROC by default. Assign the parent inside fork */
+	proc->ppid = KERNEL_PID;
 
 	/* Not much to do for the kernel process */
 	if(strcmp(name,KERNELPROC) == 0){
