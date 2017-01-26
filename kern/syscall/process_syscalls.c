@@ -88,5 +88,58 @@ pid_t sys_waitpid(pid_t chpid, userptr_t status, int option, int *retval){
 }
 */
 
+int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int32_t *retval){
+
+    int error = 0;
+
+    /* Create the child process */
+    struct proc *child = proc_create_runprogram(proc->p_name);
+    if(child == NULL){
+        return ENOMEM;
+    }
+
+    /* Now, copy all other properties to it */
+    child->p_fhs = _fhs_clone(proc->p_fhs);
+    if(child->p_fhs == NULL){
+        proc_destroy(child);
+        return ENOMEM;
+    }
+
+    /* Copy the trapframe */
+    struct trapframe *child_tf = kmalloc(sizeof(struct trapframe));
+    if(child_tf == NULL){
+        proc_destroy(child);
+        return ENOMEM;
+    }
+
+    child_tf = memcpy(child_tf, tf, sizeof(struct trapframe));
+    if (child_tf == NULL){
+        kfree(child_tf);
+        proc_destroy(child);
+        return ENOMEM;
+    }
+
+    child->ppid = proc->pid;
+
+    /* Copy the address space */
+    error = as_copy(proc->p_addrspace, &child->p_addrspace);
+    if(error != 0){
+        kfree(child_tf);
+        proc_destroy(child);
+        return ENOMEM;
+    }
+
+    /* Fork the process thread and assign to child */
+    error = thread_fork(thread, child, enter_new_process, child_tf, 0);
+    if (error != 0){
+        proc_destroy(child);
+        kfree(child_tf);
+        return ENOMEM;
+    }
+
+    *retval = child->pid;
+    return 0;
+}
+
 
 

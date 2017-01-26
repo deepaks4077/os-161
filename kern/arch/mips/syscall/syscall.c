@@ -204,8 +204,17 @@ syscall(struct trapframe *tf)
 			err = sys_chdir(
 							(const_userptr_t)tf->tf_a0
 						);
-		break;
-	    
+			break;
+
+		case SYS_fork:
+			err = sys_fork(
+							tf, 
+							curproc, 
+							curthread, 
+							&retval
+						);
+			break;
+
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
@@ -250,7 +259,17 @@ syscall(struct trapframe *tf)
  * Thus, you can trash it and do things another way if you prefer.
  */
 void
-enter_forked_process(struct trapframe *tf)
-{
-	(void)tf;
+enter_forked_process(void *data1, unsigned long data2){
+
+	struct trapframe *tf = (struct trapframe *)data1;
+
+	// copy the trapframe onto stack of userthread
+	struct trapframe child_tf;
+	memcpy(&child_tf, tf, sizeof(struct trapframe));
+	
+	child_tf.tf_v0 = 0;
+	child_tf.tf_a3 = 0;
+	child_tf.tf_epc = child_tf.tf_epc + 4;
+
+	mips_usermode(child_tf);
 }

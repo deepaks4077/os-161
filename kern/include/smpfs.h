@@ -35,5 +35,6 @@ void _fhs_close(int fd, struct fharray *fhs);
 int _fh_dup2(int oldfd, int newfd, struct fharray* fhs, int* retval);
 int _fh_bootstrap(struct fharray *fhs);
 void _fhs_cleanup(struct fharray *pfhs);
+struct fharray* _fhs_clone(struct fharray *fhs);
 
 #endif /*_FILEHANDLER_H_*/

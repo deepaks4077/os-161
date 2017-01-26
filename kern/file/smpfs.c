@@ -364,6 +364,28 @@ int _fh_bootstrap(struct fharray *fhs){
 	/* Initialization of stdin, out and err filehandlers complete */
 }
 
+struct fharray* _fhs_clone(struct fharray *fhs){
+    if(fhs == NULL){
+        return NULL;
+    }
+
+    struct fharray *newfhs = kmalloc(sizeof(struct fharray));
+    if(newfhs == NULL){
+        return NULL;
+    }
+    
+    fharray_init(newfhs);
+    int len = fharray_num(fhs);
+    fharray_setsize(newfhs, len);
+
+    int idx = 0;
+    for(idx = 0;idx < num; idx++){
+        fharray_set(newfhs, idx, fharray_get(fhs, idx));
+    }
+
+    return newfhs;
+}
+
 /* Cleanup the file handler array */
 void _fhs_cleanup(struct fharray *pfhs){
     int idx = 0;
