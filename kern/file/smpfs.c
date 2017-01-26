@@ -379,7 +379,7 @@ struct fharray* _fhs_clone(struct fharray *fhs){
     fharray_setsize(newfhs, len);
 
     int idx = 0;
-    for(idx = 0;idx < num; idx++){
+    for(idx = 0;idx < len; idx++){
         fharray_set(newfhs, idx, fharray_get(fhs, idx));
     }
 

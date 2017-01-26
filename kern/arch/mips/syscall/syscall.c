@@ -261,6 +261,9 @@ syscall(struct trapframe *tf)
 void
 enter_forked_process(void *data1, unsigned long data2){
 
+	// stop unused parameter compiler warning
+	(void)data2;
+
 	struct trapframe *tf = (struct trapframe *)data1;
 
 	// copy the trapframe onto stack of userthread
@@ -271,5 +274,5 @@ enter_forked_process(void *data1, unsigned long data2){
 	child_tf.tf_a3 = 0;
 	child_tf.tf_epc = child_tf.tf_epc + 4;
 
-	mips_usermode(child_tf);
+	mips_usermode(&child_tf);
 }

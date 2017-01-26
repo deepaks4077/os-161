@@ -7,6 +7,8 @@
 #include <current.h>
 #include <copyinout.h>
 #include <spinlock.h>
+#include <mips/trapframe.h>
+#include <addrspace.h>
 
 /*
  * get process id of the current process
@@ -99,11 +101,13 @@ int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int
     }
 
     /* Now, copy all other properties to it */
-    child->p_fhs = _fhs_clone(proc->p_fhs);
-    if(child->p_fhs == NULL){
+    struct fharray *fhs = _fhs_clone(&proc->p_fhs);
+    if(fhs == NULL){
         proc_destroy(child);
         return ENOMEM;
     }
+
+	child->p_fhs = *fhs;
 
     /* Copy the trapframe */
     struct trapframe *child_tf = kmalloc(sizeof(struct trapframe));
@@ -130,7 +134,7 @@ int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int
     }
 
     /* Fork the process thread and assign to child */
-    error = thread_fork(thread, child, enter_new_process, child_tf, 0);
+    error = thread_fork(thread->t_name, child, enter_forked_process, child_tf, 0);
     if (error != 0){
         proc_destroy(child);
         kfree(child_tf);
