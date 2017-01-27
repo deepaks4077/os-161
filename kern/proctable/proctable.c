@@ -1,6 +1,7 @@
 #include <types.h>
 #include <proctable.h>
 
+static void kill_zombies(void);
 static pid_t proctable_getpid(void);
 
 /*
@@ -117,6 +118,21 @@ bool is_valid_pid(pid_t pid){
 	return ((pid < 0) || (pid >= process_t->limit)) ? false : true;  
 }
 
+static
+void kill_zombies(void){
+	int i = 0;
+	for(i = 0; i < process_t->limit; i++){
+		struct proc *tmp = procarray_get(process_t->allprocs,ret);
+		if(tmp != NULL){
+			if(tmp->p_state == S_VOLATILE && !tmp->iswaiting){
+				proc_destroy(tmp);
+				break;
+			}
+		}
+	}
+}
+
+/* Find a new pid and remove all zombie procs */
 static 
 pid_t proctable_getpid(void){
 	
@@ -126,9 +142,12 @@ pid_t proctable_getpid(void){
 		return ERROR;
 	}
 
+	kill_zombies();
+
 	int ret = 0;
 	for(ret = 0;ret < process_t->limit; ret++){
-		if(procarray_get(process_t->allprocs,ret) == NULL){
+		struct proc *tmp = procarray_get(process_t->allprocs,ret); 
+		if(tmp == NULL){
 			break;
 		}
 	}

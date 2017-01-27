@@ -2,6 +2,7 @@
 #include <kern/errno.h>
 #include <syscall.h>
 #include <lib.h>
+#include <synch.h>
 #include <thread.h>
 #include <proc.h>
 #include <current.h>
@@ -17,78 +18,65 @@ pid_t sys_getpid(struct proc *curprocess){
     return curprocess->pid;
 }
 
-void sys_exit(){
-    // call thread_exit 
-    // wait for number of processes waiting to be 0 before calling proc_destroy and pass the exitcode
+// Zombie processes are destroyed inside proctable.c
+void sys__exit(struct proc *proc, int exitcode){
 
-    // get a reference to the current proc before destroying curthread
-    struct proc *current_proc = curproc;
+    exitcode = _MKWAIT_EXIT(exitcode);
+
+    proc->exitcode = exitcode;
+    proc->p_state = S_ZOMBIE;
+
+    V(sem_waitpid);
+
     thread_exit();
-    proc_destroy(current_proc); 
 }
 
-// create a new process
-// copy:
-//      name
-//      numthreads
-//      state
-//      address space
-//      p_cwd
-//      file handler array
-//      fork thread
-//      
-//int sys_fork(struct trapframe *tf, struct proc* parent, int* retval){
-    
-//}
+void sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval){
 
+    int error = 0;
+    int exitcode = 0;
 
-
-/*
-pid_t sys_waitpid(pid_t chpid, userptr_t status, int option, int *retval){
-    // invalid status pointer == address value if outside the address space of the program?
-    // invalid option ==
-    // childproc is not a child of the current process
-    // childproc does not exist
-    // childproc has already exited.
-    // status pointer is NULL (still valid!!)
-
-    // use copyin to copy from user address space status to a dummy kernel address space
-    // if this fails then status ptr is an invalid userspace address
-
-    int ret;
-    int* dummy = kmalloc(sizeof(int));
-    ret = copyin(status,dummy,sizeof(int));
-    if(ret == EFAULT){
-        //invalid status pointer
-        *retval = EINVAL;
-        ret = 1;
+    if(!is_valid_pid(pid)){
+        return ESRCH;
     }
 
-    struct proc *chproc;
-    chproc = get_process(chpid); // child does not exist
-    if(chproc == NULL){
-        *retval = ESRCH;
-        ret = 1;
+    struct proc *child = proctable_get(pid);
+    if(child == NULL || child->p_state == S_ZOMBIE){
+        return ESRCH;
     }
 
-    if(chproc->p_parent != curproc){ // curproc is not the parent
-        *retval = ECHILD;
-        ret = 1;
+    if(child->ppid != curproc->pid){
+        return ECHILD;
     }
 
-    spinlock_acquire(&chproc->p_lock);
-    if(chproc->p_numthreads == 0){
-        // process has already exited so its pid cannot be collected anymore
-        *retval = ESRCH;
-        ret = 1;
+    if(status != NULL){
+        void *dest = kmalloc(1);
+        error = copyin(status, dest, 1);
+        kfree(dest);
+        if(error){
+            return error;
+        }
     }
-    spinlock_release(&chproc->p_lock);
 
-    KASSERT(chproc->p_parent == curproc);
-    KASSERT(chproc->p_numthreads > 0);
+    if(child->p_state != S_ZOMBIE){
+        child->iswaiting = true;
+        P(sem_waitpid);
+        child->iswaiting = false;
+    }
 
+    exitcode = child->exitcode;
+
+    if(status != NULL){
+        error = copyout(&exitcode, status, sizeof(int));
+        if(error){
+            return error;
+        }
+    }
+
+    *retval = pid;
+
+    return error;
 }
-*/
 
 int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int32_t *retval){
 

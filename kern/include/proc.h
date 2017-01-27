@@ -51,12 +51,21 @@
 /* MAX PID value */
 #define MAX_PID PID_MAX
 
-/* Borrowing state definitions from thread.h */
-#define procstate_t threadstate_t
-
 struct addrspace;
 struct thread;
 struct vnode;
+
+/* States a process can be in. */
+typedef enum {
+	S_RUN,		/* 	running */
+	S_READY,	/* 	ready to run */
+	S_SLEEP,	/* 	sleeping */
+	S_ZOMBIE	/* 	zombie; constituent thread has exited 
+					but parent might be waiting
+				*/
+} procstate_t;
+
+
 
 /*
  * Process structure.
@@ -96,11 +105,10 @@ struct proc {
 
 	pid_t ppid; 						/* The parent process */
 
-	// TODO: Add the following later:
-	//struct cv *p_cvWait; /* Condition variable to satisfy _exit<->waitpid condition */
-	//struct lock *p_lockWait /* Lock associated with above CV */
-
-	//volatile int p_num_waiting_procs /* Count of processes waiting on this process to exit */
+	/* Used to implement waitpid and _exit */
+	int exitcode;				
+	bool is_waiting;		
+	struct semaphore *sem_waitpid;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

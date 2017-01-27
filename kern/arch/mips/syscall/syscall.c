@@ -116,8 +116,19 @@ syscall(struct trapframe *tf)
 		break;
 
 		case SYS__exit:
-		sys_exit();
-		err = 0;
+		sys__exit(
+					curproc,
+					(int)tf->tf_a0
+				);
+		break;
+
+		case SYS_waitpid:
+	    err = sys_waitpid(
+						(pid_t)tf->tf_a0,
+						curproc,
+						(userptr_t) tf->tf_a1,
+						&retval
+					);
 		break;
 
 		case SYS_open:
@@ -269,7 +280,8 @@ enter_forked_process(void *data1, unsigned long data2){
 	// copy the trapframe onto stack of userthread
 	struct trapframe child_tf;
 	memcpy(&child_tf, tf, sizeof(struct trapframe));
-	
+	kfree(tf);
+
 	child_tf.tf_v0 = 0;
 	child_tf.tf_a3 = 0;
 	child_tf.tf_epc = child_tf.tf_epc + 4;

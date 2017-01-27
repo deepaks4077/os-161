@@ -59,8 +59,6 @@ __DEAD void enter_new_process(int argc, userptr_t argv, userptr_t env,
 
 int sys_reboot(int code);
 int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
-pid_t sys_getpid(struct proc *curprocess);
-void sys_exit(void);
 
 /* File system related prototypes */
 int sys_open(struct fharray *pfhs, userptr_t path, int flags, int* retval);
@@ -73,6 +71,9 @@ int sys__getcwd(userptr_t buf, size_t nbytes, int* retval);
 int sys_chdir(const_userptr_t userpath);
 
 /* Process related syscalls */
+pid_t sys_getpid(struct proc *curprocess);
 int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int32_t *retval);
+void sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval);
+void sys__exit(struct proc *proc, int exitcode);
 
 #endif /* _SYSCALL_H_ */

@@ -102,6 +102,18 @@ proc_create(const char *name)
 	/* parent process is KERNELPROC by default. Assign the parent inside fork */
 	proc->ppid = KERNEL_PID;
 
+	proc->exitcode = 0;
+
+	proc->is_waiting = false;
+
+	proc->sem_waitpid = sem_create(proc->p_name, 0);
+	if(proc->sem_waitpid == NULL){
+		spinlock_cleanup(&proc->p_lock);
+		kfree(proc->p_name);
+		kfree(proc);
+		return NULL;
+	}
+
 	/* Not much to do for the kernel process */
 	if(strcmp(name,KERNELPROC) == 0){
 		proc->pid = KERNEL_PID;
@@ -119,6 +131,9 @@ proc_create(const char *name)
 		int ret = _fh_bootstrap(&proc->p_fhs);
 		if(ret != 0){
 			_fhs_cleanup(&proc->p_fhs);
+			spinlock_cleanup(&proc->p_lock);
+			sem_destroy(proc->sem_waitpid);
+			kfree(proc->p_name);
 			kfree(proc);
 			return NULL;
 		}
@@ -127,6 +142,9 @@ proc_create(const char *name)
 		fharray_get(&proc->p_fhs,1) == NULL || 
 		fharray_get(&proc->p_fhs,2) == NULL ){
 			_fhs_cleanup(&proc->p_fhs);
+			spinlock_cleanup(&proc->p_lock);
+			sem_destroy(proc->sem_waitpid);
+			kfree(proc->p_name);
 			kfree(proc);
 			return NULL;
 		}
@@ -134,6 +152,9 @@ proc_create(const char *name)
 		pid_t newpid = proctable_add(proc);
 		if(newpid == ERROR){
 			_fhs_cleanup(&proc->p_fhs);
+			spinlock_cleanup(&proc->p_lock);
+			sem_destroy(proc->sem_waitpid);
+			kfree(proc->p_name);
 			kfree(proc);
 			return NULL;
 		}
@@ -227,6 +248,8 @@ proc_destroy(struct proc *proc)
 	KASSERT(proc->p_numthreads == 0);
 	spinlock_cleanup(&proc->p_lock);
 
+	sem_destroy(proc->sem_waitpid);
+
 	/* Cleanup the filehandlers */
 	_fhs_cleanup(&proc->p_fhs);
 
@@ -243,7 +266,6 @@ proc_destroy(struct proc *proc)
 void
 proc_bootstrap(void)
 {
-
 	proctable_init(PID_MAX);
 
 	kproc = proc_create(KERNELPROC);
