@@ -73,7 +73,7 @@ int sys_chdir(const_userptr_t userpath);
 /* Process related syscalls */
 pid_t sys_getpid(struct proc *curprocess);
 int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int32_t *retval);
-void sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval);
+int sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval);
 void sys__exit(struct proc *proc, int exitcode);
 
 #endif /* _SYSCALL_H_ */

@@ -184,7 +184,9 @@ void
 lock_acquire(struct lock *lock)
 {
 	KASSERT(lock != NULL);
-	KASSERT(curthread->t_in_interrupt == false);
+	if(CURCPU_EXISTS()){
+		KASSERT(curthread->t_in_interrupt == false);
+	}
 
 	spinlock_acquire(&lock->lk_splock);
 	while(lock->lk_locked){
@@ -203,7 +205,9 @@ lock_release(struct lock *lock)
 {
 	// Write this
 	KASSERT(lock != NULL);
-	KASSERT(lock->lk_holder == curthread);
+	if(CURCPU_EXISTS()){
+		KASSERT(lock->lk_holder == curthread);
+	}
 
 	spinlock_acquire(&lock->lk_splock);
 	

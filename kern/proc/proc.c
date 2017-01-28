@@ -104,7 +104,7 @@ proc_create(const char *name)
 
 	proc->exitcode = 0;
 
-	proc->is_waiting = false;
+	proc->iswaiting = false;
 
 	proc->sem_waitpid = sem_create(proc->p_name, 0);
 	if(proc->sem_waitpid == NULL){

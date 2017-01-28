@@ -4,6 +4,7 @@
 #include <limits.h>
 #include <lib.h>
 #include <spinlock.h>
+#include <synch.h>
 #include <array.h>
 #include <thread.h>
 #include <proc.h>

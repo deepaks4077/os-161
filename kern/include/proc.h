@@ -51,21 +51,11 @@
 /* MAX PID value */
 #define MAX_PID PID_MAX
 
+#define procstate_t threadstate_t
+
 struct addrspace;
 struct thread;
 struct vnode;
-
-/* States a process can be in. */
-typedef enum {
-	S_RUN,		/* 	running */
-	S_READY,	/* 	ready to run */
-	S_SLEEP,	/* 	sleeping */
-	S_ZOMBIE	/* 	zombie; constituent thread has exited 
-					but parent might be waiting
-				*/
-} procstate_t;
-
-
 
 /*
  * Process structure.
@@ -107,7 +97,7 @@ struct proc {
 
 	/* Used to implement waitpid and _exit */
 	int exitcode;				
-	bool is_waiting;		
+	bool iswaiting;		
 	struct semaphore *sem_waitpid;
 };
 

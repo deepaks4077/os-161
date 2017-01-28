@@ -10,6 +10,8 @@
 #include <spinlock.h>
 #include <mips/trapframe.h>
 #include <addrspace.h>
+#include <proctable.h>
+#include <kern/wait.h>
 
 /*
  * get process id of the current process
@@ -26,12 +28,12 @@ void sys__exit(struct proc *proc, int exitcode){
     proc->exitcode = exitcode;
     proc->p_state = S_ZOMBIE;
 
-    V(sem_waitpid);
+    V(proc->sem_waitpid);
 
     thread_exit();
 }
 
-void sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval){
+int sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval){
 
     int error = 0;
     int exitcode = 0;
@@ -60,7 +62,7 @@ void sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval
 
     if(child->p_state != S_ZOMBIE){
         child->iswaiting = true;
-        P(sem_waitpid);
+        P(proc->sem_waitpid);
         child->iswaiting = false;
     }
 
@@ -79,6 +81,8 @@ void sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval
 }
 
 int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int32_t *retval){
+
+	DEBUG(DB_THREADS, "Process: %d, name:%s\n", proc->pid, proc->p_name);
 
     int error = 0;
 
@@ -122,7 +126,7 @@ int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int
     }
 
     /* Fork the process thread and assign to child */
-    error = thread_fork(thread->t_name, child, enter_forked_process, child_tf, 0);
+    error = thread_fork(thread->t_name, child, &enter_forked_process, child_tf, 0);
     if (error != 0){
         proc_destroy(child);
         kfree(child_tf);
