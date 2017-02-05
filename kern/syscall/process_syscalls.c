@@ -31,6 +31,7 @@ void sys__exit(struct proc *proc, int exitcode){
     V(proc->sem_waitpid);
 
     thread_exit();
+	proc_destroy(proc);
 }
 
 int sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval){
@@ -68,6 +69,8 @@ int sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval)
 
     exitcode = child->exitcode;
 
+	proc_destroy(child);
+
     if(status != NULL){
         error = copyout(&exitcode, status, sizeof(int));
         if(error){
@@ -82,7 +85,7 @@ int sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval)
 
 int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int32_t *retval){
 
-	DEBUG(DB_THREADS, "Process: %d, name:%s\n", proc->pid, proc->p_name);
+	//DEBUG(DB_THREADS, "Process: %d, name:%s\n", proc->pid, proc->p_name);
 
     int error = 0;
 
@@ -134,6 +137,9 @@ int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int
     }
 
     *retval = child->pid;
+
+	P(child->sem_waitpid);
+
     return 0;
 }
 

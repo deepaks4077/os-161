@@ -129,6 +129,7 @@ syscall(struct trapframe *tf)
 						(userptr_t) tf->tf_a1,
 						&retval
 					);
+		DEBUG(DB_THREADS, "Process: %d, waitpid err: %d, retval: %d\n", curproc->pid, err, retval);
 		break;
 
 		case SYS_open:
@@ -281,6 +282,8 @@ enter_forked_process(void *data1, unsigned long data2){
 	struct trapframe child_tf;
 	memcpy(&child_tf, tf, sizeof(struct trapframe));
 	kfree(tf);
+
+	V(curthread->t_proc->sem_waitpid);
 
 	child_tf.tf_v0 = 0;
 	child_tf.tf_a3 = 0;

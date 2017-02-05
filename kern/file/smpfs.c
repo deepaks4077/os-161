@@ -169,7 +169,6 @@ void _fhs_close(int fd, struct fharray *fhs){
         vfs_close(*handle->fh_vnode);
         kfree(handle->fh_vnode);
         lock_destroy(handle->fh_lock);
-		kfree(handle->fh_vnode);
         kfree(handle->filename);
         kfree(handle);
     }else{
@@ -380,7 +379,13 @@ struct fharray* _fhs_clone(struct fharray *fhs){
 
     int idx = 0;
     for(idx = 0;idx < len; idx++){
-        fharray_set(newfhs, idx, fharray_get(fhs, idx));
+		struct fh * handle = fharray_get(fhs, idx);
+		if(handle != NULL){
+			lock_acquire(handle->fh_lock);
+			fharray_set(newfhs, idx, fharray_get(fhs, idx));
+			handle->refs = handle->refs + 1;
+			lock_release(handle->fh_lock);
+		}
     }
 
     return newfhs;
@@ -389,15 +394,18 @@ struct fharray* _fhs_clone(struct fharray *fhs){
 /* Cleanup the file handler array */
 void _fhs_cleanup(struct fharray *pfhs){
     int idx = 0;
-    for(idx = 0; idx <= MAX_FD; idx++){
+    for(idx = 0; idx < MAX_FD; idx++){
         _fhs_close(idx, pfhs);
     }
 
-    fharray_cleanup(pfhs);
+	while(fharray_num(pfhs) != 0){
+		fharray_remove(pfhs, 0);
+	}
+
 }
 
 struct fh * _get_fh(int fd, struct fharray* fhs){
-    if(fd < 0 || fd > MAX_FD){
+    if(fd < 0 || fd >= MAX_FD){
         return NULL;
     }
 
