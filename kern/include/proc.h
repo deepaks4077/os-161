@@ -41,6 +41,7 @@
 #include <smpfs.h>
 #include <thread.h>
 #include <limits.h>
+#include <synch.h>
 
 /* The name of the kernel process */
 #define KERNELPROC "[kernel]"
@@ -78,7 +79,6 @@ struct proc {
 	char *p_name;						/* Name of this process */
 	struct spinlock p_lock;				/* Lock for this structure */
 	unsigned p_numthreads;				/* Number of threads in this process */
-	procstate_t p_state; 				/* Process state */
 
 	/*  
 		The process pid, pid_t is of type _i32,
@@ -95,10 +95,16 @@ struct proc {
 
 	pid_t ppid; 						/* The parent process */
 
+	struct cv *cv_waitpid;
+
+	/** Used to synchronize fork calls **/
+	struct semaphore *sem_fork;
+
+	procstate_t p_state; 				/* Process state */
+
 	/* Used to implement waitpid and _exit */
-	int exitcode;				
+	int exitcode;			
 	bool iswaiting;		
-	struct semaphore *sem_waitpid;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

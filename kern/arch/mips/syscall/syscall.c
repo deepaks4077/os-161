@@ -283,7 +283,7 @@ enter_forked_process(void *data1, unsigned long data2){
 	memcpy(&child_tf, tf, sizeof(struct trapframe));
 	kfree(tf);
 
-	V(curthread->t_proc->sem_waitpid);
+	V(curthread->t_proc->sem_fork);
 
 	child_tf.tf_v0 = 0;
 	child_tf.tf_a3 = 0;

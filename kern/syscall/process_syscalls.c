@@ -13,6 +13,8 @@
 #include <proctable.h>
 #include <kern/wait.h>
 
+static void reset_ppid_on_exit(pid_t pid);
+
 /*
  * get process id of the current process
  */
@@ -25,13 +27,19 @@ void sys__exit(struct proc *proc, int exitcode){
 
     exitcode = _MKWAIT_EXIT(exitcode);
 
+    KASSERT(!lock_do_i_hold(lk_proctable));
+
+    lock_acquire(lk_proctable);
+
     proc->exitcode = exitcode;
     proc->p_state = S_ZOMBIE;
 
-    V(proc->sem_waitpid);
+    reset_ppid_on_exit(proc->pid);
+
+    cv_broadcast(proc->cv_waitpid, lk_proctable);
+    lock_release(lk_proctable);
 
     thread_exit();
-	proc_destroy(proc);
 }
 
 int sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval){
@@ -43,15 +51,6 @@ int sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval)
         return ESRCH;
     }
 
-    struct proc *child = proctable_get(pid);
-    if(child == NULL || child->p_state == S_ZOMBIE){
-        return ESRCH;
-    }
-
-    if(child->ppid != curproc->pid){
-        return ECHILD;
-    }
-
     if(status != NULL){
         void *dest = kmalloc(1);
         error = copyin(status, dest, 1);
@@ -61,15 +60,33 @@ int sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval)
         }
     }
 
+    KASSERT(!lock_do_i_hold(lk_proctable));
+    lock_acquire(lk_proctable);
+
+    struct proc *child = proctable_get(pid);
+    if(child == NULL){
+        lock_release(lk_proctable);
+        return ESRCH;
+    }
+
+    if(child->ppid != curproc->pid){
+        lock_release(lk_proctable);
+        return ECHILD;
+    }
+
     if(child->p_state != S_ZOMBIE){
         child->iswaiting = true;
-        P(proc->sem_waitpid);
-        child->iswaiting = false;
+        while(child->p_state != S_ZOMBIE){
+            cv_wait(child->cv_waitpid, lk_proctable);
+        }
+    }else{
+        lock_release(lk_proctable);
+        return ESRCH;
     }
 
     exitcode = child->exitcode;
-
-	proc_destroy(child);
+    child->iswaiting = false;
+    lock_release(lk_proctable);
 
     if(status != NULL){
         error = copyout(&exitcode, status, sizeof(int));
@@ -138,9 +155,22 @@ int sys_fork(struct trapframe *tf, struct proc *proc, struct thread *thread, int
 
     *retval = child->pid;
 
-	P(child->sem_waitpid);
+	P(child->sem_fork);
 
     return 0;
+}
+
+static void reset_ppid_on_exit(pid_t pid){
+    // Change child's ppid to ppid of parent
+
+    struct proc *child = proctable_getchild(pid);
+    if(child == NULL){
+        return;
+    }
+
+    spinlock_acquire(child->p_lock);
+    child->ppid = curproc->pid;
+    spinlock_release(child->p_lock);
 }
 
 

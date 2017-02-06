@@ -106,9 +106,18 @@ proc_create(const char *name)
 
 	proc->iswaiting = false;
 
-	proc->sem_waitpid = sem_create(proc->p_name, 0);
-	if(proc->sem_waitpid == NULL){
+	proc->sem_fork = sem_create(proc->p_name, 0);
+	if(proc->sem_fork == NULL){
 		spinlock_cleanup(&proc->p_lock);
+		kfree(proc->p_name);
+		kfree(proc);
+		return NULL;
+	}
+
+	proc->cv_waitpid = cv_create(proc->p_name);
+	if(proc->cv_waitpid == NULL){
+		spinlock_cleanup(&proc->p_lock);
+		sem_destroy(proc->sem_fork);
 		kfree(proc->p_name);
 		kfree(proc);
 		return NULL;
@@ -116,9 +125,11 @@ proc_create(const char *name)
 
 	/* Not much to do for the kernel process */
 	if(strcmp(name,KERNELPROC) == 0){
+		/* 
+			Kernel process is added to the proctable
+			when the proctable is initialized.
+		*/
 		proc->pid = KERNEL_PID;
-		proctable_add(proc);
-		KASSERT(proctable_get(KERNEL_PID) == proc);
 	}else{
 	/* Otherwise, assign the pid from the available pids */
 	/* bootstrap the console file handles */
@@ -132,7 +143,8 @@ proc_create(const char *name)
 		if(ret != 0){
 			_fhs_cleanup(&proc->p_fhs);
 			spinlock_cleanup(&proc->p_lock);
-			sem_destroy(proc->sem_waitpid);
+			sem_destroy(proc->sem_fork);
+			cv_destroy(proc->p_name);
 			kfree(proc->p_name);
 			kfree(proc);
 			return NULL;
@@ -143,7 +155,8 @@ proc_create(const char *name)
 		fharray_get(&proc->p_fhs,2) == NULL ){
 			_fhs_cleanup(&proc->p_fhs);
 			spinlock_cleanup(&proc->p_lock);
-			sem_destroy(proc->sem_waitpid);
+			sem_destroy(proc->sem_fork);
+			cv_destroy(proc->p_name);
 			kfree(proc->p_name);
 			kfree(proc);
 			return NULL;
@@ -153,7 +166,8 @@ proc_create(const char *name)
 		if(newpid == ERROR){
 			_fhs_cleanup(&proc->p_fhs);
 			spinlock_cleanup(&proc->p_lock);
-			sem_destroy(proc->sem_waitpid);
+			sem_destroy(proc->sem_fork);
+			cv_destroy(proc->p_name);
 			kfree(proc->p_name);
 			kfree(proc);
 			return NULL;
@@ -248,7 +262,8 @@ proc_destroy(struct proc *proc)
 	KASSERT(proc->p_numthreads == 0);
 	spinlock_cleanup(&proc->p_lock);
 
-	sem_destroy(proc->sem_waitpid);
+	sem_destroy(proc->sem_fork);
+	cv_destroy(proc->p_name);
 
 	/* Cleanup the filehandlers */
 	_fhs_cleanup(&proc->p_fhs);
@@ -266,12 +281,12 @@ proc_destroy(struct proc *proc)
 void
 proc_bootstrap(void)
 {
-	proctable_init(PID_MAX);
-
 	kproc = proc_create(KERNELPROC);
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
+
+	proctable_init(PID_MAX);
 }
 
 /*
