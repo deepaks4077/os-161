@@ -19,6 +19,8 @@ typedef struct p_table{
 
 static p_table *process_t;
 
+struct lock *lk_proctable = NULL;
+
 int proctable_init(int SYS_PROC_LIMIT){
 
 	process_t = kmalloc(sizeof(p_table));

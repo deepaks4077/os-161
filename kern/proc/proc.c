@@ -68,7 +68,7 @@ struct proc *
 proc_create(const char *name)
 {
 
-	if(is_proctable_full()){
+	if(strcmp(name,KERNELPROC) != 0 && is_proctable_full()){
 		return NULL;
 	}
 
@@ -144,7 +144,7 @@ proc_create(const char *name)
 			_fhs_cleanup(&proc->p_fhs);
 			spinlock_cleanup(&proc->p_lock);
 			sem_destroy(proc->sem_fork);
-			cv_destroy(proc->p_name);
+			cv_destroy(proc->cv_waitpid);
 			kfree(proc->p_name);
 			kfree(proc);
 			return NULL;
@@ -156,7 +156,7 @@ proc_create(const char *name)
 			_fhs_cleanup(&proc->p_fhs);
 			spinlock_cleanup(&proc->p_lock);
 			sem_destroy(proc->sem_fork);
-			cv_destroy(proc->p_name);
+			cv_destroy(proc->cv_waitpid);
 			kfree(proc->p_name);
 			kfree(proc);
 			return NULL;
@@ -167,7 +167,7 @@ proc_create(const char *name)
 			_fhs_cleanup(&proc->p_fhs);
 			spinlock_cleanup(&proc->p_lock);
 			sem_destroy(proc->sem_fork);
-			cv_destroy(proc->p_name);
+			cv_destroy(proc->cv_waitpid);
 			kfree(proc->p_name);
 			kfree(proc);
 			return NULL;
@@ -263,7 +263,7 @@ proc_destroy(struct proc *proc)
 	spinlock_cleanup(&proc->p_lock);
 
 	sem_destroy(proc->sem_fork);
-	cv_destroy(proc->p_name);
+	cv_destroy(proc->cv_waitpid);
 
 	/* Cleanup the filehandlers */
 	_fhs_cleanup(&proc->p_fhs);

@@ -69,7 +69,7 @@ int sys_waitpid(pid_t pid, struct proc *proc, userptr_t status, int32_t *retval)
         return ESRCH;
     }
 
-    if(child->ppid != curproc->pid){
+    if(child->ppid != proc->pid){
         lock_release(lk_proctable);
         return ECHILD;
     }
@@ -168,9 +168,9 @@ static void reset_ppid_on_exit(pid_t pid){
         return;
     }
 
-    spinlock_acquire(child->p_lock);
+    spinlock_acquire(&child->p_lock);
     child->ppid = curproc->pid;
-    spinlock_release(child->p_lock);
+    spinlock_release(&child->p_lock);
 }
 
 
